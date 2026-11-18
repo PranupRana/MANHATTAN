@@ -29,6 +29,10 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Namaste! Ma MANHATTAN hu. Kehi sodha! 🙌"}
     ]
 
+for msg in st.session_state.messages:
+    if msg["role"] == "system":
+        continue
+    st.chat_message...
 for m in st.session_state.messages:
     st.chat_message(m["role"]).write(m["content"])
 

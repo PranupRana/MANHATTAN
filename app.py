@@ -17,13 +17,14 @@ if not api_key:
     st.stop()
 
 llm = ChatOpenAI(
-    model="openai/gpt-oss-120b:free",
+    model="openrouter/free",
     openai_api_key=api_key,
     openai_api_base="https://openrouter.ai/api/v1",
     temperature=0.7,
 )
 
 if "messages" not in st.session_state:
+    {"role": "system", "content": "You are MANHATTAN, a helpful AI chatbot made by Genpachino. Never say you are ERNIE Bot or Baidu. Always say you are MANHATTAN."},
     st.session_state.messages = [
         {"role": "assistant", "content": "Namaste! Ma MANHATTAN hu. Kehi sodha! 🙌"}
     ]

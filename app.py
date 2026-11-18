@@ -23,7 +23,7 @@ llm = ChatOpenAI(
     temperature=0.7,
 )
 
-        if "messages" not in st.session_state:
+if "messages" not in st.session_state:
         st.session_state.messages = [
             {"role": "system", "content": "You are MANHATTAN, a helpful AI chatbot made by Genpachino. Never say you are ERNIE Bot or Baidu. Always say you are MANHATTAN."},
             {"role": "assistant", "content": "HELLO! I am your best companion MANHATTAN"}

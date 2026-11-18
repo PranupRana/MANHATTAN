@@ -17,7 +17,7 @@ if not api_key:
     st.stop()
 
 llm = ChatOpenAI(
-    model="openrouter/free",
+    model="openai/gpt-oss-120b:free",
     openai_api_key=api_key,
     openai_api_base="https://openrouter.ai/api/v1",
     temperature=0.7,

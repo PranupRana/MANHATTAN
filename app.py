@@ -5,7 +5,7 @@ import datetime
 
 st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 
-# ---------- PREMIUM CSS ----------
+# ---------- PREMIUM CSS - UJYALO TEXT FIX ----------
 st.markdown("""
 <style>
     .main { background-color: #0E1117; }
@@ -16,7 +16,19 @@ st.markdown("""
     .prompt-desc { font-size: 12px; color: #9AA0B0; margin-top: 4px; }
     .footer { text-align: center; color: #666; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    div[data-testid="stChatMessage"] { border-radius: 16px; }
+
+    /* --- TEXT UJYALO FIX --- */
+    div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
+    div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span {
+        color: #FFFFFF !important;
+        font-size: 16px !important;
+        line-height: 1.6 !important;
+        opacity: 1 !important;
+    }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label {
+        color: #E0E0E0 !important;
+    }
+    h1, h2, h3 { color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 

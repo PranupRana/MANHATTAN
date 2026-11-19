@@ -26,17 +26,8 @@ with st.sidebar:
     st.caption("Don't use others AI. I built my own.")
     st.divider()
 
-    # --- API KEY ---
-    st.subheader("🔑 API Key")
-    _secret_key = ""
-    try:
-        _secret_key = st.secrets.get("OPENROUTER_API_KEY", "")
-    except:
-        pass
-    api_key = st.text_input("OpenRouter API Key", value=_secret_key, type="password", help="openrouter.ai > Keys bata lyaera yaha paste gara")
-    if not api_key:
-        st.warning("⚠️ API Key hala natra chat chaldaina!")
-    st.divider()
+    # API Key - Secrets bata matra, kahilyai screen ma dekhaudaina
+api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
     st.subheader("⚙️ Settings")
     # --- CHALNE MODEL HARU MATRA ---

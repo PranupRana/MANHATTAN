@@ -5,44 +5,50 @@ import datetime
 
 st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 
+# ---------- PREMIUM CSS ----------
 st.markdown("""
 <style>
     .main { background-color: #0E1117; }
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
-    .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; }
+    .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; transition: 0.3s; }
+    .prompt-card:hover { border-color: #FF4B4B; transform: translateY(-2px); }
     .prompt-title { font-size: 16px; font-weight: 700; color: white; }
     .prompt-desc { font-size: 12px; color: #9AA0B0; margin-top: 4px; }
     .footer { text-align: center; color: #666; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    div[data-testid="stChatMessage"] { border-radius: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ---------- SIDEBAR - SMART ----------
 with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.caption("Don't use others AI. I built my own.")
     st.divider()
 
-    # --- API KEY YAHI BATA HALNE ---
+    # --- API KEY ---
     st.subheader("🔑 API Key")
-    # Pahila Secrets bata khojcha, nabhaye khali box dincha
-    default_key = ""
+    _secret_key = ""
     try:
-        default_key = st.secrets.get("OPENROUTER_API_KEY", "")
+        _secret_key = st.secrets.get("OPENROUTER_API_KEY", "")
     except:
         pass
-    api_key_input = st.text_input("OpenRouter API Key", value=default_key, type="password", help="openrouter.ai bata lyaera yaha paste gara")
-    st.caption("Key chaina? openrouter.ai > Keys > Create Key")
-
+    api_key = st.text_input("OpenRouter API Key", value=_secret_key, type="password", help="openrouter.ai > Keys bata lyaera yaha paste gara")
+    if not api_key:
+        st.warning("⚠️ API Key hala natra chat chaldaina!")
     st.divider()
+
     st.subheader("⚙️ Settings")
+    # --- CHALNE MODEL HARU MATRA ---
     model_choice = st.selectbox("🧠 Model", [
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "google/gemma-2-9b-it:free",
-        "qwen/qwen-2.5-72b-instruct:free",
-        "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+        "openrouter/free",
+        "nvidia/nemotron-3.5-super-vl:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "cohere/north-mini-code:free",
+        "google/gemma-4-31b-it:free",
     ], index=0)
     
-    temperature = st.slider("🔥 Creativity", 0.0, 1.5, 0.7, 0.1)
+    temperature = st.slider("🔥 Creativity (Temperature)", 0.0, 1.5, 0.7, 0.1, help="Low = Serious, High = Pagal / Funny")
     personality = st.selectbox("🎭 Personality", ["Bold Friend", "Teacher", "Coder Bro", "Roaster 😈"])
     
     st.divider()
@@ -65,9 +71,12 @@ with st.sidebar:
     if st.session_state.messages:
         chat_text = "\n\n".join([f"{m['role'].upper()}: {m['content']}" for m in st.session_state.messages])
         st.download_button("⬇️ Download Chat", chat_text, file_name=f"manhattan-{datetime.date.today()}.txt", use_container_width=True)
+
     st.divider()
     st.caption("Made with ❤️ in Nepal by PranupRana")
+    st.caption("Powered by OpenRouter")
 
+# ---------- SYSTEM PROMPT ----------
 PERSONALITY_PROMPTS = {
     "Bold Friend": "You are MANHATTAN. You answer any question directly and honestly. No lecture, no moralizing. Speak like a real bold friend from Nepal, mix Nepali + English.",
     "Teacher": "You are MANHATTAN, a smart teacher. Explain everything simply, with examples, in easy Nepali-English mix.",
@@ -76,11 +85,9 @@ PERSONALITY_PROMPTS = {
 }
 SYSTEM_PROMPT = PERSONALITY_PROMPTS[personality]
 
+# ---------- MAIN AREA ----------
 st.title("MANHATTAN 🔥")
-st.caption(f"Chatting with **{personality}** • Model: `{model_choice.split('/')[0]}`")
-
-if not api_key_input:
-    st.warning("⚠️ Pahila Sidebar ma API Key hala, natra chat chaldaina!")
+st.caption(f"Chatting with **{personality}** • Model: `{model_choice}`")
 
 if len(st.session_state.messages) == 0:
     st.markdown("### 👋 Ke garne? Choose gara:")
@@ -103,12 +110,12 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="🧑" if msg["role"] == "user" else "🔥"):
         st.markdown(msg["content"])
 
-prompt = st.chat_input("Message MANHATTAN...")
+prompt = st.chat_input("Message MANHATTAN... (Shift+Enter for new line)")
 if "pending_prompt" in st.session_state:
     prompt = st.session_state.pop("pending_prompt")
 
 if prompt:
-    if not api_key_input:
+    if not api_key:
         st.error("Pahila Sidebar ma API Key hala!")
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -127,7 +134,7 @@ if prompt:
                 try:
                     llm = ChatOpenAI(
                         model=model_choice.strip(),
-                        openai_api_key=api_key_input,
+                        openai_api_key=api_key,
                         openai_api_base="https://openrouter.ai/api/v1",
                         temperature=temperature,
                     )

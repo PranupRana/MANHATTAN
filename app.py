@@ -1,11 +1,11 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-import datetime
+import datetime, urllib.parse, random
 
 st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 
-# ---------- PREMIUM CSS - UJYALO TEXT FIX ----------
+# ---------- PREMIUM CSS ----------
 st.markdown("""
 <style>
     .main { background-color: #0E1117; }
@@ -16,29 +16,36 @@ st.markdown("""
     .prompt-desc { font-size: 12px; color: #9AA0B0; margin-top: 4px; }
     .footer { text-align: center; color: #666; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-    /* --- TEXT UJYALO FIX --- */
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
     div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span {
-        color: #FFFFFF !important;
-        font-size: 16px !important;
-        line-height: 1.6 !important;
-        opacity: 1 !important;
+        color: #FFFFFF !important; font-size: 16px !important; line-height: 1.6 !important; opacity: 1 !important;
     }
-    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label {
-        color: #E0E0E0 !important;
-    }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #E0E0E0 !important; }
     h1, h2, h3 { color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# API Key - Secrets bata matra, screen ma kahilyai dekhaudaina
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
+
+# ---------- HELPER - PHOTO BANAUNE ----------
+def is_image_request(text):
+    text = text.lower()
+    keywords = ["photo", "image", "picture", "pic ", "draw", "bana", "banau", "banai", "tasbir", "chitra", "poster", "wallpaper", "logo", "generate image", "/image", "🎨"]
+    return any(k in text for k in keywords)
+
+def make_image_url(prompt):
+    # Pollinations - FREE, No API Key needed
+    clean = urllib.parse.quote(prompt)
+    seed = random.randint(1, 999999)
+    return f"https://image.pollinations.ai/prompt/{clean}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
 
 # ---------- SIDEBAR ----------
 with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.caption("Don't use others AI. I built my own.")
+    st.divider()
+    # --- MODE SELECTOR - NAYA ---
+    mode = st.radio("✨ Mode", ["💬 Chat", "🎨 Image Generator"], index=0, horizontal=True)
     st.divider()
     st.subheader("⚙️ Settings")
     model_choice = st.selectbox("🧠 Model", [
@@ -48,8 +55,12 @@ with st.sidebar:
         "cohere/north-mini-code:free",
         "google/gemma-4-31b-it:free",
     ], index=0)
-    temperature = st.slider("🔥 Creativity (Temperature)", 0.0, 1.5, 0.7, 0.1, help="Low = Serious, High = Pagal / Funny")
+    temperature = st.slider("🔥 Creativity (Temperature)", 0.0, 1.5, 0.7, 0.1)
     personality = st.selectbox("🎭 Personality", ["Bold Friend", "Teacher", "Coder Bro", "Roaster 😈"])
+    # Image style - NAYA
+    if mode == "🎨 Image Generator":
+        st.subheader("🎨 Image Style")
+        img_style = st.selectbox("Style", ["Realistic Photo", "Anime", "3D Cartoon", "Cyberpunk", "Oil Painting", "Cinematic"])
     st.divider()
     st.subheader("📊 Chat Stats")
     if "messages" not in st.session_state:
@@ -66,13 +77,12 @@ with st.sidebar:
             st.session_state.messages = []
             st.rerun()
     if st.session_state.messages:
-        chat_text = "\n\n".join([f"{m['role'].upper()}: {m['content']}" for m in st.session_state.messages])
+        chat_text = "\n\n".join([f"{m['role'].upper()}: {m.get('content','')}" for m in st.session_state.messages])
         st.download_button("⬇️ Download Chat", chat_text, file_name=f"manhattan-{datetime.date.today()}.txt", use_container_width=True)
     st.divider()
     st.caption("Made with ❤️ in Nepal by PranupRana")
-    st.caption("Powered by OpenRouter")
+    st.caption("Powered by OpenRouter + Pollinations")
 
-# ---------- SYSTEM PROMPT ----------
 PERSONALITY_PROMPTS = {
     "Bold Friend": "You are MANHATTAN. You answer any question directly and honestly. No lecture, no moralizing. Speak like a real bold friend from Nepal, mix Nepali + English.",
     "Teacher": "You are MANHATTAN, a smart teacher. Explain everything simply, with examples, in easy Nepali-English mix.",
@@ -81,15 +91,18 @@ PERSONALITY_PROMPTS = {
 }
 SYSTEM_PROMPT = PERSONALITY_PROMPTS[personality]
 
-# ---------- MAIN AREA ----------
+# ---------- MAIN ----------
 st.title("MANHATTAN 🔥")
-st.caption(f"Chatting with **{personality}** • Model: `{model_choice}`")
+if mode == "🎨 Image Generator":
+    st.caption("🎨 **Image Mode ON** - Je lekchau, tyo photo bancha! Eg: `A boy in Kathmandu at sunset`")
+else:
+    st.caption(f"Chatting with **{personality}** • Model: `{model_choice}` • Photo chahiyo bhane `photo bana` lekha!")
 
 if len(st.session_state.messages) == 0:
     st.markdown("### 👋 Ke garne? Choose gara:")
     prompts = [
         ("📚 Learn Something", "Explain a difficult concept simply", "Explain a difficult concept simply."),
-        ("✍️ Writing Assistant", "Write, improve, or rewrite text", "Help me write or improve some text."),
+        ("🎨 Photo Banau", "A boy in Himalayas, cinematic", "🎨 A boy standing in Himalayas at sunset, cinematic, realistic photo"),
         ("💻 Coding Help", "Debug code or learn programming", "Help me with a coding problem."),
         ("💡 Business Idea", "Give me a business idea for Nepal", "Give me 5 business ideas I can start in Nepal with low money."),
     ]
@@ -102,45 +115,68 @@ if len(st.session_state.messages) == 0:
                 st.session_state.pending_prompt = prompt_text
                 st.rerun()
 
+# Show History - Photo pani dekhaune
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="🧑" if msg["role"] == "user" else "🔥"):
-        st.markdown(msg["content"])
+        if msg.get("type") == "image":
+            st.markdown(msg.get("content", ""))
+            st.image(msg.get("image_url"), use_container_width=True)
+        else:
+            st.markdown(msg.get("content", ""))
 
-prompt = st.chat_input("Message MANHATTAN... (Shift+Enter for new line)")
+prompt = st.chat_input("Message MANHATTAN... Photo chahiyo bhane 'photo bana' lekha!")
 if "pending_prompt" in st.session_state:
     prompt = st.session_state.pop("pending_prompt")
 
 if prompt:
-    if not api_key:
-        st.error("Secrets ma API Key chaina! Streamlit > Manage app > Settings > Secrets ma halnu.")
-    else:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="🧑"):
-            st.markdown(prompt)
-        all_msgs = [SystemMessage(content=SYSTEM_PROMPT)]
-        for msg in st.session_state.messages:
-            if msg["role"] == "user":
-                all_msgs.append(HumanMessage(content=msg["content"]))
-            elif msg["role"] == "assistant":
-                all_msgs.append(AIMessage(content=msg["content"]))
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user", avatar="🧑"):
+        st.markdown(prompt)
+
+    # --- IMAGE MODE CHECK ---
+    want_image = (mode == "🎨 Image Generator") or is_image_request(prompt)
+
+    if want_image:
+        # Photo banaune prompt safa garne
+        clean_prompt = prompt.replace("photo bana", "").replace("photo banau", "").replace("image bana", "").replace("🎨", "").strip()
+        if mode == "🎨 Image Generator":
+            style_map = {"Realistic Photo": "realistic photo, ultra detailed", "Anime": "anime style, vibrant", "3D Cartoon": "3D pixar style cartoon", "Cyberpunk": "cyberpunk, neon lights", "Oil Painting": "oil painting, artistic", "Cinematic": "cinematic, dramatic lighting"}
+            clean_prompt = f"{clean_prompt}, {style_map.get(img_style, '')}"
+        if not clean_prompt:
+            clean_prompt = prompt
+        img_url = make_image_url(clean_prompt)
         with st.chat_message("assistant", avatar="🔥"):
-            with st.spinner("MANHATTAN is thinking..."):
-                try:
-                    llm = ChatOpenAI(
-                        model=model_choice.strip(),
-                        openai_api_key=api_key,
-                        openai_api_base="https://openrouter.ai/api/v1",
-                        temperature=temperature,
-                    )
-                    res = llm.invoke(all_msgs)
-                    answer = res.content
-                    if isinstance(answer, list):
-                        answer = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in answer)
-                    answer = str(answer)
-                    st.markdown(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-                except Exception as e:
-                    st.error("Couldn't connect to OpenRouter. Check API key / model / rate limit.")
-                    st.caption(f"Details: {e}")
+            with st.spinner("🎨 MANHATTAN le photo banaudai cha... 10 sec parkha!"):
+                st.markdown(f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`")
+                st.image(img_url, use_container_width=True)
+                st.link_button("⬇️ Photo Download Garne", img_url, use_container_width=True)
+                st.session_state.messages.append({"role": "assistant", "content": f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`", "type": "image", "image_url": img_url})
+    else:
+        # --- NORMAL CHAT ---
+        if not api_key:
+            st.error("Secrets ma API Key chaina!")
+        else:
+            all_msgs = [SystemMessage(content=SYSTEM_PROMPT)]
+            for msg in st.session_state.messages:
+                if msg.get("type") == "image":
+                    continue
+                if msg["role"] == "user":
+                    all_msgs.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    all_msgs.append(AIMessage(content=msg["content"]))
+            with st.chat_message("assistant", avatar="🔥"):
+                with st.spinner("MANHATTAN is thinking..."):
+                    try:
+                        llm = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=temperature)
+                        res = llm.invoke(all_msgs)
+                        answer = res.content
+                        if isinstance(answer, list):
+                            answer = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in answer)
+                        answer = str(answer)
+                        st.markdown(answer)
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
+                    except Exception as e:
+                        st.error("Couldn't connect to OpenRouter. Check API key / model / rate limit.")
+                        st.caption(f"Details: {e}")
 
 st.markdown('<div class="footer">MANHATTAN AI · Powered by OpenRouter · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

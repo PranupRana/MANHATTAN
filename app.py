@@ -20,17 +20,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- SIDEBAR - SMART ----------
+# API Key - Secrets bata matra, screen ma kahilyai dekhaudaina
+api_key = st.secrets.get("OPENROUTER_API_KEY", "")
+
+# ---------- SIDEBAR ----------
 with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.caption("Don't use others AI. I built my own.")
     st.divider()
-
-    # API Key - Secrets bata matra, kahilyai screen ma dekhaudaina
-api_key = st.secrets.get("OPENROUTER_API_KEY", "")
-
     st.subheader("⚙️ Settings")
-    # --- CHALNE MODEL HARU MATRA ---
     model_choice = st.selectbox("🧠 Model", [
         "openrouter/free",
         "nvidia/nemotron-3.5-super-vl:free",
@@ -38,16 +36,13 @@ api_key = st.secrets.get("OPENROUTER_API_KEY", "")
         "cohere/north-mini-code:free",
         "google/gemma-4-31b-it:free",
     ], index=0)
-    
     temperature = st.slider("🔥 Creativity (Temperature)", 0.0, 1.5, 0.7, 0.1, help="Low = Serious, High = Pagal / Funny")
     personality = st.selectbox("🎭 Personality", ["Bold Friend", "Teacher", "Coder Bro", "Roaster 😈"])
-    
     st.divider()
     st.subheader("📊 Chat Stats")
     if "messages" not in st.session_state:
         st.session_state.messages = []
     st.metric("Total Messages", len(st.session_state.messages))
-    
     st.divider()
     col_a, col_b = st.columns(2)
     with col_a:
@@ -58,11 +53,9 @@ api_key = st.secrets.get("OPENROUTER_API_KEY", "")
         if st.button("🔄 New Chat", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
-
     if st.session_state.messages:
         chat_text = "\n\n".join([f"{m['role'].upper()}: {m['content']}" for m in st.session_state.messages])
         st.download_button("⬇️ Download Chat", chat_text, file_name=f"manhattan-{datetime.date.today()}.txt", use_container_width=True)
-
     st.divider()
     st.caption("Made with ❤️ in Nepal by PranupRana")
     st.caption("Powered by OpenRouter")
@@ -107,19 +100,17 @@ if "pending_prompt" in st.session_state:
 
 if prompt:
     if not api_key:
-        st.error("Pahila Sidebar ma API Key hala!")
+        st.error("Secrets ma API Key chaina! Streamlit > Manage app > Settings > Secrets ma halnu.")
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user", avatar="🧑"):
             st.markdown(prompt)
-
         all_msgs = [SystemMessage(content=SYSTEM_PROMPT)]
         for msg in st.session_state.messages:
             if msg["role"] == "user":
                 all_msgs.append(HumanMessage(content=msg["content"]))
             elif msg["role"] == "assistant":
                 all_msgs.append(AIMessage(content=msg["content"]))
-
         with st.chat_message("assistant", avatar="🔥"):
             with st.spinner("MANHATTAN is thinking..."):
                 try:

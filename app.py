@@ -1,33 +1,26 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-import datetime, urllib.parse, random, hashlib, sqlite3, json, io
+import datetime, urllib.parse, random, hashlib, sqlite3, json, io, re
 import numpy as np
 
-# --- RAG ko lagi ---
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
     HAS_SKLEARN = True
-except:
-    HAS_SKLEARN = False
+except: HAS_SKLEARN = False
 try:
     import fitz
     HAS_FITZ = True
-except:
-    HAS_FITZ = False
-
-# --- VOICE ko lagi ---
+except: HAS_FITZ = False
 try:
     from gtts import gTTS
     HAS_TTS = True
-except:
-    HAS_TTS = False
+except: HAS_TTS = False
 try:
     import speech_recognition as sr
     HAS_STT = True
-except:
-    HAS_STT = False
+except: HAS_STT = False
 
 st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 
@@ -35,88 +28,112 @@ st.markdown("""
 <style>
     .main { background-color: #0E1117; }
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
+    .stApp p, .stApp label, .stApp span, .stApp div { color: #FFFFFF !important; }
+    h1, h2, h3 { color: white !important; }
+    input[type="text"], input[type="password"] {
+        background-color: #1E2130 !important;
+        color: #FFFFFF !important;
+        border: 2px solid #FF4B4B !important;
+        border-radius: 12px !important;
+        font-size: 16px !important;
+        padding: 12px !important;
+    }
+    input::placeholder { color: #AAAAAA !important; opacity: 1 !important; }
+    input:focus { color: #FFFFFF !important; border-color: #FF8A00 !important; box-shadow: 0 0 0 2px #FF4B4B55 !important; }
+    label[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; }
+    button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; border-radius: 10px 10px 0 0 !important; padding: 10px 20px !important; }
+    button[data-baseweb="tab"][aria-selected="true"] { background-color: #FF4B4B !important; color: #FFFFFF !important; }
+    button[data-baseweb="tab"] p { color: #FFFFFF !important; }
+    button[kind="primary"] { background-color: #FF4B4B !important; color: white !important; font-weight: 800 !important; font-size: 16px !important; border-radius: 12px !important; padding: 10px !important; }
+    button[kind="primary"] p { color: white !important; }
+    div[data-testid="stAlert"] p { color: #FFFFFF !important; }
     .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; }
     .prompt-title { font-size: 16px; font-weight: 700; color: white; }
     .prompt-desc { font-size: 12px; color: #9AA0B0; margin-top: 4px; }
-    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 40px; }
+    .footer { text-align: center; color: #FFFFFF !important; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
     div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span { color: #FFFFFF !important; font-size: 16px !important; line-height: 1.6 !important; }
     section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #E0E0E0 !important; }
-    h1, h2, h3 { color: white !important; }
     .rag-box { background: #1A2E1A; padding: 12px; border-radius: 12px; border: 1px solid #2E7D32; margin-bottom: 10px; }
     .voice-box { background: #2A1A3E; padding: 12px; border-radius: 12px; border: 1px solid #7B2FFF; margin-bottom: 10px; }
+    .bot-card { background: linear-gradient(135deg, #2A1A3E 0%, #1E2130 100%); padding: 16px; border-radius: 20px; border: 2px solid #FF4B4B; text-align: center; margin-bottom: 12px; }
+    .bot-avatar { font-size: 64px; line-height: 1; }
+    .bot-name { font-size: 18px; font-weight: 800; color: white; margin-top: 4px; }
+    .bot-speech { background: white; color: #111 !important; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; font-weight: 600; margin-top: 10px; text-align: left; }
+    .bot-speech p, .bot-speech b { color: #111 !important; }
+    .login-card { background: #1E2130; padding: 24px; border-radius: 20px; border: 2px solid #FF4B4B; }
 </style>
 """, unsafe_allow_html=True)
 
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
-# ==================== 🎤 VOICE FUNCTIONS ====================
+# ==================== 🤖 MOFISTO BOT ====================
+BOT_PERSONALITIES = {
+    "😊 Helper Mofisto": {
+        "avatar": "🤖",
+        "greeting": "Hey! Ma Mofisto ho! Timi lai ke help chahiyo? Photo banaune, video banaune, ki homework? J pani sodha hai!",
+        "help": "La, ma Mofisto le help garchu! Sidebar ma Mode change gara — Photo chahiyo bhane Image, Video chahiyo bhane Video. Bolera sodhna Mic use gara!",
+        "tips": ["Photo banauna Image Mode ma jau", "Video banauna Video Mode ma jau", "PDF halyo bhane RAG le tyai bata answer dincha", "Bolera sodhna Mic dabau"],
+        "encourage": "Timle ramro gardai chau! Aru kehi sodhne? Ma Mofisto yei chu hai! 🔥"
+    },
+    "😂 Funny Mofisto": {
+        "avatar": "😹",
+        "greeting": "Yo yo! Ma Mofisto! Bored bhayo? Ma chu ni! Jokes sunne ki photo banaune? Bhan na!",
+        "help": "Hahaha tension nalinu! Ma Mofisto chu! Lekhna aalchi lagyo bhane bolera sodha, ma sunera bujhchu!",
+        "tips": ["Bored bhayo bhane malai joke suna bhan", "Photo banauna 'A boy in Himalayas' lekha", "Video banauna 'Running in rain' lekha"],
+        "encourage": "Hahaha timi ta pro nai rahechau! Aru ke garne? 😂"
+    },
+    "🔥 Motivator Mofisto": {
+        "avatar": "🦸",
+        "greeting": "Let's go! Ma timro motivator Mofisto! Aaja kehi thulo garne ho? Suru garam!",
+        "help": "Har nman! Step by step garam. Pahila ke chahiyo bhan — Chat, Image, ki Video? Ma Mofisto le guide garchu!",
+        "tips": ["Aaja 1 ota naya kura sikha", "Timi sakchau, try gara!", "PDF halera RAG bata padha"],
+        "encourage": "That's the spirit! Timle sakchau! Agadi badha! 🔥"
+    },
+}
+
 def text_to_speech(text, lang="en"):
-    """Text -> Audio (gTTS) - returns bytes"""
-    if not HAS_TTS:
-        return None
-    # Markdown / emoji hataune, 800 char samma matra bolne
-    import re
+    if not HAS_TTS: return None
     clean = re.sub(r'[#*`_~>\[\]()|]', '', text)
     clean = re.sub(r'[^\w\s.,!?\'-]', ' ', clean)
     clean = clean[:800]
-    if not clean.strip():
-        return None
+    if not clean.strip(): return None
     try:
-        # Nepali mix bhaye english ma bolne, pure nepali detect gare nepali
-        if any(ord(c) > 127 and '\u0900' <= c <= '\u097F' for c in text):
-            lang = "ne"
+        if any('\u0900' <= c <= '\u097F' for c in text): lang = "ne"
         tts = gTTS(text=clean, lang=lang, slow=False)
-        buf = io.BytesIO()
-        tts.write_to_fp(buf)
-        buf.seek(0)
+        buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
         return buf.read()
-    except Exception as e:
-        print("TTS error:", e)
-        return None
+    except: return None
 
 def speech_to_text(audio_bytes):
-    """Audio -> Text (Google Speech Recognition)"""
-    if not HAS_STT:
-        return None, "SpeechRecognition install chaina!"
+    if not HAS_STT: return None, "SpeechRecognition install chaina!"
     try:
         r = sr.Recognizer()
-        # audio_bytes lai wav ma convert
         with sr.AudioFile(io.BytesIO(audio_bytes)) as source:
             audio = r.record(source)
-            # English + Nepali try
-            try:
-                text = r.recognize_google(audio, language="en-IN")
-            except:
-                text = r.recognize_google(audio, language="ne-NP")
+            try: text = r.recognize_google(audio, language="en-IN")
+            except: text = r.recognize_google(audio, language="ne-NP")
             return text, None
-    except sr.UnknownValueError:
-        return None, "Awaz bujhina, feri bolna! 🎤"
-    except Exception as e:
-        return None, f"Voice error: {e}"
+    except sr.UnknownValueError: return None, "Awaz bujhina, feri bolna! 🎤"
+    except Exception as e: return None, f"Voice error: {e}"
 
-# ==================== 🔐 LOGIN + HISTORY DB ====================
+# ==================== DB - LOGIN + HISTORY ====================
 DB_PATH = "manhattan.db"
 def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.execute("""CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash TEXT, created_at TEXT)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS chats (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, title TEXT, messages TEXT, updated_at TEXT)""")
-    conn.commit()
-    return conn
+    conn.commit(); return conn
 def hash_pass(pw): return hashlib.sha256(pw.encode()).hexdigest()
 def signup_user(username, password):
     conn = get_db()
     try:
-        conn.execute("INSERT INTO users VALUES (?,?,?)", (username, hash_pass(password), str(datetime.datetime.now())))
-        conn.commit(); return True, "Account banayo! Abba Login gara."
-    except sqlite3.IntegrityError:
-        return False, "Yo username pahila nai cha!"
+        conn.execute("INSERT INTO users VALUES (?,?,?)", (username, hash_pass(password), str(datetime.datetime.now()))); conn.commit(); return True, "Account banayo! Abba Login gara."
+    except sqlite3.IntegrityError: return False, "Yo username pahila nai cha!"
     finally: conn.close()
 def login_user(username, password):
-    conn = get_db()
-    row = conn.execute("SELECT password_hash FROM users WHERE username=?", (username,)).fetchone()
-    conn.close()
+    conn = get_db(); row = conn.execute("SELECT password_hash FROM users WHERE username=?", (username,)).fetchone(); conn.close()
     return row and row[0] == hash_pass(password)
 def save_current_chat(username, messages, chat_id=None, title=None):
     if not messages: return chat_id
@@ -124,20 +141,14 @@ def save_current_chat(username, messages, chat_id=None, title=None):
         first = next((m.get("content","") for m in messages if m.get("role")=="user"), "New Chat")
         title = first[:40] + ("..." if len(first) > 40 else "")
     conn = get_db(); now = str(datetime.datetime.now())
-    if chat_id:
-        conn.execute("UPDATE chats SET title=?, messages=?, updated_at=? WHERE id=? AND username=?", (title, json.dumps(messages), now, chat_id, username))
+    if chat_id: conn.execute("UPDATE chats SET title=?, messages=?, updated_at=? WHERE id=? AND username=?", (title, json.dumps(messages), now, chat_id, username))
     else:
-        cur = conn.execute("INSERT INTO chats (username,title,messages,updated_at) VALUES (?,?,?,?)", (username, title, json.dumps(messages), now))
-        chat_id = cur.lastrowid
+        cur = conn.execute("INSERT INTO chats (username,title,messages,updated_at) VALUES (?,?,?,?)", (username, title, json.dumps(messages), now)); chat_id = cur.lastrowid
     conn.commit(); conn.close(); return chat_id
 def get_user_chats(username):
-    conn = get_db()
-    rows = conn.execute("SELECT id, title, updated_at FROM chats WHERE username=? ORDER BY updated_at DESC", (username,)).fetchall()
-    conn.close(); return rows
+    conn = get_db(); rows = conn.execute("SELECT id, title, updated_at FROM chats WHERE username=? ORDER BY updated_at DESC", (username,)).fetchall(); conn.close(); return rows
 def load_chat(chat_id, username):
-    conn = get_db()
-    row = conn.execute("SELECT messages FROM chats WHERE id=? AND username=?", (chat_id, username)).fetchone()
-    conn.close()
+    conn = get_db(); row = conn.execute("SELECT messages FROM chats WHERE id=? AND username=?", (chat_id, username)).fetchone(); conn.close()
     return json.loads(row[0]) if row else []
 def delete_chat(chat_id, username):
     conn = get_db(); conn.execute("DELETE FROM chats WHERE id=? AND username=?", (chat_id, username)); conn.commit(); conn.close()
@@ -149,43 +160,66 @@ if "current_chat_id" not in st.session_state: st.session_state.current_chat_id =
 if "rag_chunks" not in st.session_state: st.session_state.rag_chunks = []
 if "rag_files" not in st.session_state: st.session_state.rag_files = []
 if "voice_reply" not in st.session_state: st.session_state.voice_reply = True
-if "voice_lang" not in st.session_state: st.session_state.voice_lang = "Auto"
+if "bot_enabled" not in st.session_state: st.session_state.bot_enabled = True
+if "bot_name" not in st.session_state: st.session_state.bot_name = "😊 Helper Mofisto"
+if "bot_message" not in st.session_state: st.session_state.bot_message = None
+if "bot_audio" not in st.session_state: st.session_state.bot_audio = None
+if "bot_talk" not in st.session_state: st.session_state.bot_talk = True
 
-# ==================== 🔐 LOGIN PAGE ====================
+# ==================== LOGIN PAGE ====================
 if not st.session_state.logged_in:
     st.markdown('<div class="manhattan-logo" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#9AA0B0;'>Don't use others AI. I built my own.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#FFFFFF; font-size:16px;'>Don't use others AI. I built my own.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
-        tab_login, tab_signup = st.tabs(["🔐 Login", "✨ Signup"])
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        tab_login, tab_signup = st.tabs(["🔐  Login", "✨  Signup"])
         with tab_login:
-            st.subheader("Welcome Back 🔥")
-            lu = st.text_input("Username", key="login_u")
-            lp = st.text_input("Password", type="password", key="login_p")
-            if st.button("Login", use_container_width=True, type="primary"):
-                if not lu or not lp: st.error("Username + Password duitai halna!")
+            st.markdown("<h3 style='color:white;'>Welcome Back 🔥</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#CCCCCC;'>Username ra Password halera Login gara</p>", unsafe_allow_html=True)
+            lu = st.text_input("👤 Username", placeholder="Timro username lekha...", key="login_u")
+            lp = st.text_input("🔒 Password", placeholder="Timro password lekha...", type="password", key="login_p")
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔐 Login Garne", use_container_width=True, type="primary"):
+                if not lu or not lp:
+                    st.error("Username + Password duitai halna!")
                 elif login_user(lu.strip(), lp):
-                    st.session_state.logged_in = True; st.session_state.username = lu.strip()
-                    st.session_state.messages = []; st.session_state.current_chat_id = None
-                    st.success(f"Welcome back, {lu}! 🔥"); st.rerun()
-                else: st.error("Username / Password galat cha!")
+                    st.session_state.logged_in = True
+                    st.session_state.username = lu.strip()
+                    st.session_state.messages = []
+                    st.session_state.current_chat_id = None
+                    bot = BOT_PERSONALITIES[st.session_state.bot_name]
+                    st.session_state.bot_message = f"Welcome back {lu}! {bot['greeting']}"
+                    st.success(f"Welcome back, {lu}! 🔥")
+                    st.rerun()
+                else:
+                    st.error("Username / Password galat cha!")
+            st.markdown("<p style='color:#AAAAAA; font-size:13px; text-align:center; margin-top:10px;'>Account chaina? Signup tab ma jau 👆</p>", unsafe_allow_html=True)
         with tab_signup:
-            st.subheader("Naya Account Banau")
-            su = st.text_input("Naya Username", key="signup_u")
-            sp = st.text_input("Naya Password", type="password", key="signup_p")
-            sp2 = st.text_input("Password Confirm", type="password", key="signup_p2")
-            if st.button("Signup Garne", use_container_width=True, type="primary"):
-                if not su or not sp: st.error("Username + Password chahincha!")
-                elif sp != sp2: st.error("Password milena!")
-                elif len(sp) < 4: st.error("Password kamti ma 4 character hunu parcha!")
+            st.markdown("<h3 style='color:white;'>Naya Account Banau ✨</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#CCCCCC;'>Naya username ra password rakha</p>", unsafe_allow_html=True)
+            su = st.text_input("👤 Naya Username", placeholder="Eg: pranup123", key="signup_u")
+            sp = st.text_input("🔒 Naya Password", placeholder="Kamti ma 4 character", type="password", key="signup_p")
+            sp2 = st.text_input("🔒 Password Confirm", placeholder="Password feri lekha", type="password", key="signup_p2")
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("✨ Signup Garne", use_container_width=True, type="primary"):
+                if not su or not sp:
+                    st.error("Username + Password chahincha!")
+                elif sp != sp2:
+                    st.error("Password milena!")
+                elif len(sp) < 4:
+                    st.error("Password kamti ma 4 character hunu parcha!")
                 else:
                     ok, msg = signup_user(su.strip(), sp)
-                    st.success(msg) if ok else st.error(msg)
+                    if ok: st.success(msg)
+                    else: st.error(msg)
+            st.markdown("<p style='color:#AAAAAA; font-size:13px; text-align:center; margin-top:10px;'>Account cha? Login tab ma jau 👆</p>", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('<div class="footer">MANHATTAN AI · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)
     st.stop()
 
-# ==================== MAIN APP ====================
+# ==================== HELPERS ====================
 def chunk_text(text, chunk_size=800, overlap=150):
     chunks=[]; start=0
     while start < len(text):
@@ -198,8 +232,7 @@ def extract_text(file):
         doc=fitz.open(stream=file.read(), filetype="pdf"); text=""
         for page in doc: text+=page.get_text()+"\n"
         return text
-    elif file.name.endswith(".txt") or file.name.endswith(".md"):
-        return file.read().decode("utf-8", errors="ignore")
+    elif file.name.endswith(".txt") or file.name.endswith(".md"): return file.read().decode("utf-8", errors="ignore")
     return ""
 def retrieve_relevant(query, chunks, top_k=3):
     if not chunks or not HAS_SKLEARN: return chunks[:top_k]
@@ -209,11 +242,9 @@ def retrieve_relevant(query, chunks, top_k=3):
         return [chunks[i] for i in idx if sims[i]>0.05]
     except: return chunks[:top_k]
 def is_image_request(text):
-    text=text.lower(); keywords=["photo","image","picture","pic ","draw","bana","banau","banai","tasbir","chitra","poster","wallpaper","logo","generate image","/image","🎨"]
-    return any(k in text for k in keywords)
+    text=text.lower(); return any(k in text for k in ["photo","image","picture","pic ","draw","bana","banau","banai","tasbir","chitra","poster","wallpaper","logo","generate image","/image","🎨"])
 def is_video_request(text):
-    text=text.lower(); keywords=["video","vedio","bhidiyo","reel","clip","animation","animate","motion","/video","🎬","🎥"]
-    return any(k in text for k in keywords)
+    text=text.lower(); return any(k in text for k in ["video","vedio","bhidiyo","reel","clip","animation","animate","motion","/video","🎬","🎥"])
 def make_image_url(prompt):
     clean=urllib.parse.quote(prompt); seed=random.randint(1,999999)
     return f"https://image.pollinations.ai/prompt/{clean}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
@@ -227,22 +258,43 @@ with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.caption(f"👤 Logged in: **{st.session_state.username}**")
     if st.button("🚪 Logout", use_container_width=True):
-        if st.session_state.messages:
-            st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
+        if st.session_state.messages: st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
         st.session_state.logged_in=False; st.session_state.username=""; st.session_state.messages=[]; st.session_state.current_chat_id=None; st.rerun()
     st.divider()
-
-    # --- 🎤 VOICE SETTINGS - NAYA ---
+    st.subheader("🤖 Little Bot - Mofisto")
+    bot_on = st.toggle("🤖 Bot ON / OFF", value=st.session_state.bot_enabled)
+    st.session_state.bot_enabled = bot_on
+    if bot_on:
+        bot_choice = st.selectbox("Bot Chhana", list(BOT_PERSONALITIES.keys()), index=list(BOT_PERSONALITIES.keys()).index(st.session_state.bot_name))
+        st.session_state.bot_name = bot_choice
+        bot_talk = st.toggle("🗣️ Bot Bolcha (Voice)", value=st.session_state.bot_talk)
+        st.session_state.bot_talk = bot_talk
+        bot = BOT_PERSONALITIES[bot_choice]
+        st.markdown(f"""<div class="bot-card"><div class="bot-avatar">{bot['avatar']}</div><div class="bot-name">{bot_choice}</div><div class="bot-speech">{st.session_state.bot_message or bot['greeting']}</div></div>""", unsafe_allow_html=True)
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("💡 Help Gar", use_container_width=True):
+                st.session_state.bot_message = bot['help']
+                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
+                st.rerun()
+        with col_b2:
+            if st.button("🎲 Tip Deu", use_container_width=True):
+                tip = random.choice(bot['tips'])
+                st.session_state.bot_message = f"Tip: {tip}"
+                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
+                st.rerun()
+        if st.session_state.bot_audio: st.audio(st.session_state.bot_audio, format="audio/mp3")
+        if st.button("🔊 Bot lai Bolau", use_container_width=True):
+            msg = st.session_state.bot_message or bot['greeting']
+            st.session_state.bot_audio = text_to_speech(msg)
+            st.rerun()
+    st.divider()
     st.subheader("🎤 Voice Settings")
-    st.markdown('<div class="voice-box">🎙️ Bolera sodhna, sunera bujhna milcha!</div>', unsafe_allow_html=True)
-    voice_enabled = st.toggle("🔊 Voice Reply ON (MANHATTAN le bolcha)", value=st.session_state.voice_reply)
+    voice_enabled = st.toggle("🔊 Voice Reply ON", value=st.session_state.voice_reply)
     st.session_state.voice_reply = voice_enabled
     voice_lang_opt = st.selectbox("🗣️ Voice Language", ["Auto", "English", "Nepali"], index=0)
-    voice_speed = st.selectbox("⏩ Voice Speed", ["Normal", "Slow"], index=0)
     st.divider()
-
-    # --- 🎤 VOICE INPUT ---
-    st.subheader("🎤 Voice Input - Bolera Sodha")
+    st.subheader("🎤 Voice Input")
     audio_input = st.audio_input("🎙️ Yaha thichera bola...", key="voice_input_main")
     if audio_input is not None:
         if st.button("🎤 Yo Awaz lai Text Banau", use_container_width=True, type="primary"):
@@ -251,33 +303,29 @@ with st.sidebar:
                 text, err = speech_to_text(audio_bytes)
                 if text:
                     st.success(f"Timle bhaneko: **{text}**")
-                    st.session_state.pending_prompt = text
-                    st.rerun()
-                else:
-                    st.error(err or "Awaz bujhina!")
+                    st.session_state.pending_prompt = text; st.rerun()
+                else: st.error(err or "Awaz bujhina!")
     st.divider()
-
     st.subheader("📂 Chat History")
     if st.button("➕ New Chat", use_container_width=True, type="primary"):
-        if st.session_state.messages:
-            st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
-        st.session_state.messages=[]; st.session_state.current_chat_id=None; st.rerun()
+        if st.session_state.messages: st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
+        st.session_state.messages=[]; st.session_state.current_chat_id=None
+        if st.session_state.bot_enabled: st.session_state.bot_message = BOT_PERSONALITIES[st.session_state.bot_name]['encourage']
+        st.rerun()
     user_chats = get_user_chats(st.session_state.username)
     if user_chats:
         for cid, title, updated in user_chats:
             c1, c2 = st.columns([4,1])
             with c1:
                 if st.button(f"💬 {title}", key=f"hist_{cid}", use_container_width=True):
-                    if st.session_state.messages:
-                        st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
+                    if st.session_state.messages: st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
                     st.session_state.messages = load_chat(cid, st.session_state.username); st.session_state.current_chat_id=cid; st.rerun()
             with c2:
                 if st.button("🗑️", key=f"del_{cid}"):
                     delete_chat(cid, st.session_state.username)
                     if st.session_state.current_chat_id==cid: st.session_state.messages=[]; st.session_state.current_chat_id=None
                     st.rerun()
-    else:
-        st.info("Aile samma chat chaina.")
+    else: st.info("Aile samma chat chaina.")
     st.divider()
     st.subheader("📚 RAG - Apno Document")
     uploaded = st.file_uploader("📄 Document halnu (PDF / TXT)", type=["pdf","txt","md"], accept_multiple_files=True)
@@ -299,8 +347,7 @@ with st.sidebar:
     model_choice = st.selectbox("🧠 Model", ["openrouter/free","nvidia/nemotron-3.5-super-vl:free","nvidia/nemotron-3-ultra-550b-a55b:free","cohere/north-mini-code:free","google/gemma-4-31b-it:free"], index=0)
     temperature = st.slider("🔥 Creativity", 0.0, 1.5, 0.7, 0.1)
     personality = st.selectbox("🎭 Personality", ["Bold Friend","Teacher","Coder Bro","Roaster 😈"])
-    if mode=="🎨 Image Generator":
-        img_style = st.selectbox("Style", ["Realistic Photo","Anime","3D Cartoon","Cyberpunk","Oil Painting","Cinematic"])
+    if mode=="🎨 Image Generator": img_style = st.selectbox("Style", ["Realistic Photo","Anime","3D Cartoon","Cyberpunk","Oil Painting","Cinematic"])
     if mode=="🎬 Video Generator":
         vid_style = st.selectbox("Video Style", ["Realistic","Anime","3D Cartoon","Cinematic","Cyberpunk","Slow Motion"])
         vid_duration = st.slider("⏱️ Duration (sec)", 3, 10, 5)
@@ -323,24 +370,52 @@ BASE_PROMPT = PERSONALITY_PROMPTS[personality]
 
 # ---------- MAIN ----------
 st.title("MANHATTAN 🔥")
-st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🎤 Bolera sodhna sidebar ma Mic use gara!")
+st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🤖 Mofisto le help garcha!")
+if st.session_state.bot_enabled:
+    bot = BOT_PERSONALITIES[st.session_state.bot_name]
+    with st.container():
+        col_bot1, col_bot2 = st.columns([1, 5])
+        with col_bot1:
+            st.markdown(f"<div style='font-size:55px; text-align:center;'>{bot['avatar']}</div>", unsafe_allow_html=True)
+            if st.button("🗣️ Mofisto Bol", key="mofisto_bol_main"):
+                st.session_state.bot_message = bot['greeting']
+                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['greeting'])
+                st.rerun()
+        with col_bot2:
+            st.markdown(f"<div class='bot-speech'>🤖 <b>{st.session_state.bot_name}:</b> {st.session_state.bot_message or bot['greeting']}</div>", unsafe_allow_html=True)
+            if st.session_state.bot_audio: st.audio(st.session_state.bot_audio, format="audio/mp3")
+            c_help, c_tip, c_joke = st.columns(3)
+            with c_help:
+                if st.button("💡 Help Chahiyo", key="bot_help_main"):
+                    st.session_state.bot_message = bot['help']
+                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
+                    st.rerun()
+            with c_tip:
+                if st.button("🎲 Tip Deu", key="bot_tip_main"):
+                    tip = random.choice(bot['tips'])
+                    st.session_state.bot_message = f"Tip: {tip}"
+                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
+                    st.rerun()
+            with c_joke:
+                if st.button("😂 Joke Suna", key="bot_joke_main"):
+                    joke = random.choice(["Kathmandu ma traffic kina cha? Kina bhane sabai MANHATTAN use garna hidya! 😂", "AI le pani chiya piuncha? Ho, data-chiya! ☕", "Timi ra MANHATTAN best combo ho! 🔥"])
+                    st.session_state.bot_message = joke
+                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(joke)
+                    st.rerun()
 if st.session_state.rag_chunks:
     st.success(f"📚 RAG ON: {', '.join(st.session_state.rag_files)} bata answer dinchu!")
 if mode=="🎨 Image Generator": st.caption("🎨 **Image Mode ON**")
-elif mode=="🎬 Video Generator": st.caption("🎬 **Video Mode ON** - 30-60 sec lagcha!")
+elif mode=="🎬 Video Generator": st.caption("🎬 **Video Mode ON**")
 else: st.caption(f"Chatting with **{personality}** • Model: `{model_choice}`")
-
 if len(st.session_state.messages)==0:
     st.markdown("### 👋 Ke garne? Choose gara:")
-    prompts=[("📚 RAG Test","PDF bata sodha","Yo document ma ke cha? Summary deu."),("🎨 Photo Banau","A boy in Himalayas","🎨 A boy standing in Himalayas at sunset, cinematic"),("🎬 Video Banau","A boy running in rain","🎬 A boy running in Kathmandu rain, cinematic"),("🎤 Voice Test","Bolera sodha","Hello MANHATTAN, timi ko hau?")]
+    prompts=[("📚 RAG Test","PDF bata sodha","Yo document ma ke cha? Summary deu."),("🎨 Photo Banau","A boy in Himalayas","🎨 A boy standing in Himalayas at sunset, cinematic"),("🎬 Video Banau","A boy running in rain","🎬 A boy running in Kathmandu rain, cinematic"),("🤖 Mofisto sanga Kura","Bot sanga kura gara","Hello Mofisto, malai help gara na!")]
     c1,c2,c3,c4=st.columns(4); cols=[c1,c2,c3,c4]
     for i,(title,desc,prompt_text) in enumerate(prompts):
         with cols[i]:
             st.markdown(f'<div class="prompt-card"><div class="prompt-title">{title}</div><div class="prompt-desc">{desc}</div></div>', unsafe_allow_html=True)
             if st.button("Use →", key=f"suggest{i}", use_container_width=True):
                 st.session_state.pending_prompt=prompt_text; st.rerun()
-
-# Show History - Voice pani dekhaune
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="🧑" if msg["role"]=="user" else "🔥"):
         if msg.get("type")=="image":
@@ -349,23 +424,19 @@ for msg in st.session_state.messages:
             st.markdown(msg.get("content","")); st.video(msg.get("video_url")); st.link_button("⬇️ Video Download", msg.get("video_url"), use_container_width=True)
         else:
             st.markdown(msg.get("content",""))
-            # Purano chat ma pani voice sunna milos - Voice Reply ON cha bhane
-            if msg.get("role")=="assistant" and msg.get("audio"):
-                st.audio(msg.get("audio"), format="audio/mp3")
+            if msg.get("role")=="assistant" and msg.get("audio"): st.audio(msg.get("audio"), format="audio/mp3")
             if msg.get("sources"):
                 with st.expander("📚 RAG Source"):
                     for s in msg["sources"]: st.caption(s[:600])
-
-prompt = st.chat_input("Message MANHATTAN... ya Sidebar ma 🎤 bolera sodha!")
-if "pending_prompt" in st.session_state:
-    prompt = st.session_state.pop("pending_prompt")
-
+prompt = st.chat_input("Message MANHATTAN... ya Mofisto lai bolau!")
+if "pending_prompt" in st.session_state: prompt = st.session_state.pop("pending_prompt")
 if prompt:
     st.session_state.messages.append({"role":"user","content":prompt})
     with st.chat_message("user", avatar="🧑"): st.markdown(prompt)
     want_image = (mode=="🎨 Image Generator") or is_image_request(prompt)
     want_video = (mode=="🎬 Video Generator") or is_video_request(prompt)
-
+    if st.session_state.bot_enabled:
+        st.session_state.bot_message = random.choice(BOT_PERSONALITIES[st.session_state.bot_name]['tips'])
     if want_video:
         clean_prompt=prompt.replace("video bana","").replace("video banau","").replace("vedio bana","").replace("🎬","").replace("🎥","").strip()
         if mode=="🎬 Video Generator":
@@ -378,12 +449,10 @@ if prompt:
             with st.spinner("🎬 Video banaudai cha..."):
                 st.markdown(f"La timro video banayo! 🔥\n**Prompt:** `{clean_prompt}`")
                 st.video(vid_url); st.link_button("⬇️ Video Download", vid_url, use_container_width=True)
-                # Video ko lagi pani voice
-                voice_txt = "La timro video banayo, hera ta!"
-                audio_bytes = text_to_speech(voice_txt) if st.session_state.voice_reply else None
+                audio_bytes = text_to_speech("La timro video banayo, hera ta!") if st.session_state.voice_reply else None
                 if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
                 st.session_state.messages.append({"role":"assistant","content":f"La timro video banayo! 🔥\n**Prompt:** `{clean_prompt}`","type":"video","video_url":vid_url,"audio":audio_bytes})
-                st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
+                st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
     elif want_image:
         clean_prompt=prompt.replace("photo bana","").replace("photo banau","").replace("image bana","").replace("🎨","").strip()
         if mode=="🎨 Image Generator":
@@ -395,11 +464,10 @@ if prompt:
             with st.spinner("🎨 Photo banaudai cha..."):
                 st.markdown(f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`")
                 st.image(img_url, use_container_width=True); st.link_button("⬇️ Photo Download", img_url, use_container_width=True)
-                voice_txt = "La timro photo banayo, hera ta katti ramro!"
-                audio_bytes = text_to_speech(voice_txt) if st.session_state.voice_reply else None
+                audio_bytes = text_to_speech("La timro photo banayo, hera ta katti ramro!") if st.session_state.voice_reply else None
                 if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
                 st.session_state.messages.append({"role":"assistant","content":f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`","type":"image","image_url":img_url,"audio":audio_bytes})
-                st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
+                st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
     else:
         if not api_key: st.error("Secrets ma API Key chaina!")
         else:
@@ -420,26 +488,20 @@ if prompt:
                         llm=ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=temperature)
                         res=llm.invoke(all_msgs); answer=res.content
                         if isinstance(answer, list): answer="".join(p.get("text","") if isinstance(p, dict) else str(p) for p in answer)
-                        answer=str(answer)
-                        st.markdown(answer)
-                        # 🎤 VOICE REPLY - NAYA
+                        answer=str(answer); st.markdown(answer)
                         audio_bytes=None
                         if st.session_state.voice_reply:
                             with st.spinner("🔊 Voice banaudai..."):
-                                lang_code = "ne" if voice_lang_opt=="Nepali" else "en" if voice_lang_opt=="English" else "en"
+                                lang_code = "ne" if voice_lang_opt=="Nepali" else "en"
                                 audio_bytes = text_to_speech(answer, lang=lang_code)
-                                if audio_bytes:
-                                    st.audio(audio_bytes, format="audio/mp3")
+                                if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
                         if sources:
                             with st.expander("📚 RAG Source"):
                                 for s in sources: st.caption(s[:600])
-                        # Audio lai DB ma save garna sakdaina (bytes json ma mildaina) - isliye audio lai session ma matra rakhne, DB ma audio=None
                         save_msg = {"role":"assistant","content":answer,"sources":sources if sources else None}
                         st.session_state.messages.append(save_msg)
-                        # Display ko lagi audio pani session ma alag bata rakhne
                         st.session_state.messages[-1]["audio"] = audio_bytes
                         st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
-
-st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

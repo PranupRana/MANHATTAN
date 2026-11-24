@@ -3,6 +3,11 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 import datetime, urllib.parse, random, hashlib, sqlite3, json, io, re, base64
 import numpy as np
+import asyncio
+try:
+    import edge_tts
+    HAS_EDGE = True
+except: HAS_EDGE = False
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -28,6 +33,8 @@ st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
     .stApp > div p, .stApp h1, .stApp h2, .stApp h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #FFFFFF !important; }
+    /* LEFT SIDEBAR FIX */
+    section[data-testid="stSidebar"] { background-color: #14151F !important; }
     div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button, button[kind="secondary"], button[kind="primary"] {
         background-color: #1E2130 !important; color: #FFFFFF !important; border: 1px solid #3A4157 !important; border-radius: 12px !important; font-weight: 700 !important;
     }
@@ -57,7 +64,9 @@ st.markdown("""
     .prompt-card p, .prompt-title { color: white !important; }
     .prompt-desc { color: #CCCCCC !important; }
     .footer { text-align: center; color: #FFFFFF !important; font-size: 12px; margin-top: 40px; }
-    .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    /* LOGO FIX - gradient transparent le dekheko thiyena, aba solid */
+    .manhattan-logo { font-size: 26px !important; font-weight: 900 !important; color: #FF4B4B !important; background: none !important; -webkit-text-fill-color: #FF4B4B !important; line-height: 1.2 !important; white-space: nowrap !important; }
+    .manhattan-logo-main { font-size: 34px !important; font-weight: 900 !important; color: #FFFFFF !important; }
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
     div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span { color: #FFFFFF !important; font-size: 16px !important; }
     .rag-box { background: #1A2E1A; padding: 12px; border-radius: 12px; border: 1px solid #2E7D32; margin-bottom: 10px; }
@@ -76,14 +85,18 @@ st.markdown("""
     div[data-testid="stFileUploader"] p, div[data-testid="stFileUploader"] span, div[data-testid="stFileUploader"] small { color: #FFFFFF !important; }
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
-    /* Audio player hataune - pachi pani dekhidaina */
     audio { display: none !important; }
+    /* ===== RIGHT FLOATING BOT ===== */
+    @keyframes floaty { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+    @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,75,75,0.6); } 70% { box-shadow: 0 0 0 16px rgba(255,75,75,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); } }
+    .floating-bot-bubble { background: white; color: #111 !important; padding: 12px 14px; border-radius: 18px 18px 4px 18px; font-size: 14px; font-weight: 600; width: 250px; margin-bottom: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; animation: floaty 2.5s ease-in-out infinite; }
+    .floating-bot-bubble p, .floating-bot-bubble b, .floating-bot-bubble span { color: #111 !important; }
+    .floating-bot-circle { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #FF4B4B, #FF8A00); display: flex; align-items: center; justify-content: center; font-size: 34px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; }
 </style>
 """, unsafe_allow_html=True)
 
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
-# ==================== 🤖 MOFISTO BOT - ENGLISH, SIRI JASTO ====================
 BOT_PERSONALITIES = {
     "😊 Helper Mofisto": {
         "avatar": "🤖",
@@ -108,23 +121,41 @@ BOT_PERSONALITIES = {
     },
 }
 
-# ===== SIRI / GEMINI JASTO VOICE - US ENGLISH ACCENT =====
+# ===== MALE, ALIK KARA VOICE - ChristopherNeural =====
 def text_to_speech(text, lang="en"):
-    if not HAS_TTS: return None
     clean = re.sub(r'[#*`_~>\[\]()|]', '', text)
     clean = re.sub(r'[^\w\s.,!?\'-]', ' ', clean)
     clean = clean[:800]
     if not clean.strip(): return None
-    try:
-        # tld='com' = US accent, Siri / Gemini jasto normal English
-        # tld='co.uk' bhaye British huncha, tld='com' bhaye American
-        tts = gTTS(text=clean, lang="en", tld="com", slow=False)
-        buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
-        return buf.read()
-    except: return None
+    if HAS_EDGE:
+        try:
+            VOICE = "en-US-ChristopherNeural"
+            async def _make():
+                communicate = edge_tts.Communicate(clean, VOICE, rate="-5%", pitch="-5Hz")
+                buf = io.BytesIO()
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        buf.write(chunk["data"])
+                buf.seek(0)
+                return buf.read()
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                audio = loop.run_until_complete(_make())
+                loop.close()
+                return audio
+            except:
+                return asyncio.run(_make())
+        except: pass
+    if HAS_TTS:
+        try:
+            tts = gTTS(text=clean, lang="en", tld="com", slow=False)
+            buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
+            return buf.read()
+        except: return None
+    return None
 
 def play_hidden_audio(audio_bytes):
-    # Audio bar NAAUNE, tara awaz automatic bajne
     if not audio_bytes: return
     b64 = base64.b64encode(audio_bytes).decode()
     st.markdown(f"""<audio autoplay="true" style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>""", unsafe_allow_html=True)
@@ -187,9 +218,10 @@ if "bot_name" not in st.session_state: st.session_state.bot_name = "😊 Helper 
 if "bot_message" not in st.session_state: st.session_state.bot_message = None
 if "bot_audio" not in st.session_state: st.session_state.bot_audio = None
 if "bot_talk" not in st.session_state: st.session_state.bot_talk = True
+if "bot_open" not in st.session_state: st.session_state.bot_open = True
 
 if not st.session_state.logged_in:
-    st.markdown('<div class="manhattan-logo" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
+    st.markdown('<div class="manhattan-logo-main" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#FFFFFF; font-size:16px;'>Don't use others AI. I built my own.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.4, 1])
@@ -275,39 +307,19 @@ def make_video_url(prompt, duration=5, aspect="16:9"):
 
 with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
-    st.caption(f"👤 Logged in: **{st.session_state.username}**")
+    st.markdown(f"<p style='color:#FFFFFF;'>👤 Logged in: <b>{st.session_state.username}</b></p>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
         if st.session_state.messages: st.session_state.current_chat_id = save_current_chat(st.session_state.username, st.session_state.messages, st.session_state.current_chat_id)
         st.session_state.logged_in=False; st.session_state.username=""; st.session_state.messages=[]; st.session_state.current_chat_id=None; st.rerun()
     st.divider()
-    st.subheader("🤖 Little Bot - Mofisto")
-    bot_on = st.toggle("🤖 Bot ON / OFF", value=st.session_state.bot_enabled)
+    st.subheader("🤖 Mofisto Settings")
+    bot_on = st.toggle("🤖 Floating Bot ON / OFF", value=st.session_state.bot_enabled)
     st.session_state.bot_enabled = bot_on
     if bot_on:
         bot_choice = st.selectbox("Bot Chhana", list(BOT_PERSONALITIES.keys()), index=list(BOT_PERSONALITIES.keys()).index(st.session_state.bot_name))
         st.session_state.bot_name = bot_choice
-        bot_talk = st.toggle("🗣️ Bot Bolcha (Voice)", value=st.session_state.bot_talk)
+        bot_talk = st.toggle("🗣️ Bot Bolcha (Male Voice)", value=st.session_state.bot_talk)
         st.session_state.bot_talk = bot_talk
-        bot = BOT_PERSONALITIES[bot_choice]
-        st.markdown(f"""<div class="bot-card"><div class="bot-avatar">{bot['avatar']}</div><div class="bot-name">{bot_choice}</div><div class="bot-speech">{st.session_state.bot_message or bot['greeting']}</div></div>""", unsafe_allow_html=True)
-        col_b1, col_b2 = st.columns(2)
-        with col_b1:
-            if st.button("💡 Help Gar", use_container_width=True):
-                st.session_state.bot_message = bot['help']
-                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
-                st.rerun()
-        with col_b2:
-            if st.button("🎲 Tip Deu", use_container_width=True):
-                tip = random.choice(bot['tips'])
-                st.session_state.bot_message = f"Tip: {tip}"
-                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
-                st.rerun()
-        # Audio bar HATAIYO - awaz matra bajcha, bar dekhidaina
-        if st.session_state.bot_audio: play_hidden_audio(st.session_state.bot_audio)
-        if st.button("🔊 Bot lai Bolau", use_container_width=True):
-            msg = st.session_state.bot_message or bot['greeting']
-            st.session_state.bot_audio = text_to_speech(msg)
-            st.rerun()
     st.divider()
     st.subheader("🎤 Voice Settings")
     voice_enabled = st.toggle("🔊 Voice Reply ON", value=st.session_state.voice_reply)
@@ -388,40 +400,9 @@ PERSONALITY_PROMPTS = {
 }
 BASE_PROMPT = PERSONALITY_PROMPTS[personality]
 
-st.title("MANHATTAN 🔥")
-st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🤖 Mofisto le help garcha!")
-if st.session_state.bot_enabled:
-    bot = BOT_PERSONALITIES[st.session_state.bot_name]
-    with st.container():
-        col_bot1, col_bot2 = st.columns([1, 5])
-        with col_bot1:
-            st.markdown(f"<div style='font-size:55px; text-align:center;'>{bot['avatar']}</div>", unsafe_allow_html=True)
-            if st.button("🗣️ Mofisto Bol", key="mofisto_bol_main"):
-                st.session_state.bot_message = bot['greeting']
-                if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['greeting'])
-                st.rerun()
-        with col_bot2:
-            st.markdown(f"<div class='bot-speech'>🤖 <b>{st.session_state.bot_name}:</b> {st.session_state.bot_message or bot['greeting']}</div>", unsafe_allow_html=True)
-            # 👇 YAHI THAU - Audio bar HATAIYO, awaz matra bajcha
-            if st.session_state.bot_audio: play_hidden_audio(st.session_state.bot_audio)
-            c_help, c_tip, c_joke = st.columns(3)
-            with c_help:
-                if st.button("💡 Help Chahiyo", key="bot_help_main"):
-                    st.session_state.bot_message = bot['help']
-                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
-                    st.rerun()
-            with c_tip:
-                if st.button("🎲 Tip Deu", key="bot_tip_main"):
-                    tip = random.choice(bot['tips'])
-                    st.session_state.bot_message = f"Tip: {tip}"
-                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
-                    st.rerun()
-            with c_joke:
-                if st.button("😂 Joke Suna", key="bot_joke_main"):
-                    joke = random.choice(["Why is there traffic in Kathmandu? Because everyone is going to use MANHATTAN! 😂", "Does AI drink tea? Yes, data-tea! ☕", "You and MANHATTAN are the best combo! 🔥"])
-                    st.session_state.bot_message = joke
-                    if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(joke)
-                    st.rerun()
+# MAIN - thulo bot hataiyo, floating bot matra
+st.markdown('<div class="manhattan-logo-main">MANHATTAN 🔥</div>', unsafe_allow_html=True)
+st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🤖 Mofisto is on the right side!")
 if st.session_state.rag_chunks:
     st.success(f"📚 RAG ON: {', '.join(st.session_state.rag_files)} bata answer dinchu!")
 if mode=="🎨 Image Generator": st.caption("🎨 **Image Mode ON**")
@@ -523,4 +504,40 @@ if prompt:
                         st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
+
+# ==================== 🤖 RIGHT SIDE FLOATING BOT ====================
+if st.session_state.bot_enabled:
+    bot = BOT_PERSONALITIES[st.session_state.bot_name]
+    # Right side ma dhakelna
+    _f1, _f2 = st.columns([8, 2])
+    with _f2:
+        if st.session_state.bot_open:
+            st.markdown(f"""<div class="floating-bot-bubble">🤖 <b>{st.session_state.bot_name}:</b><br>{st.session_state.bot_message or bot['greeting']}</div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="floating-bot-circle">{bot['avatar']}</div>""", unsafe_allow_html=True)
+        if st.button("🔊 Mofisto Bol", key="floating_mofisto_btn", use_container_width=True):
+            st.session_state.bot_message = bot['greeting']
+            st.session_state.bot_open = True
+            if st.session_state.bot_talk:
+                st.session_state.bot_audio = text_to_speech(bot['greeting'])
+            st.rerun()
+        if st.button("💡 Help", key="float_help"):
+            st.session_state.bot_message = bot['help']
+            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
+            st.rerun()
+        if st.button("🎲 Tip", key="float_tip"):
+            tip = random.choice(bot['tips'])
+            st.session_state.bot_message = f"Tip: {tip}"
+            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
+            st.rerun()
+        if st.button("😂 Joke", key="float_joke"):
+            joke = random.choice(["Why is there traffic in Kathmandu? Because everyone is going to use MANHATTAN!", "Does AI drink tea? Yes, data-tea!", "You and MANHATTAN are the best combo!"])
+            st.session_state.bot_message = joke
+            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(joke)
+            st.rerun()
+        if st.button("❌ Close", key="float_close"):
+            st.session_state.bot_open = False
+            st.rerun()
+    if st.session_state.bot_audio:
+        play_hidden_audio(st.session_state.bot_audio)
+
 st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

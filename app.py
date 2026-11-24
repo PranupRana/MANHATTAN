@@ -33,7 +33,6 @@ st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
     .stApp > div p, .stApp h1, .stApp h2, .stApp h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #FFFFFF !important; }
-    /* LEFT SIDEBAR FIX */
     section[data-testid="stSidebar"] { background-color: #14151F !important; }
     div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button, button[kind="secondary"], button[kind="primary"] {
         background-color: #1E2130 !important; color: #FFFFFF !important; border: 1px solid #3A4157 !important; border-radius: 12px !important; font-weight: 700 !important;
@@ -64,7 +63,6 @@ st.markdown("""
     .prompt-card p, .prompt-title { color: white !important; }
     .prompt-desc { color: #CCCCCC !important; }
     .footer { text-align: center; color: #FFFFFF !important; font-size: 12px; margin-top: 40px; }
-    /* LOGO FIX - gradient transparent le dekheko thiyena, aba solid */
     .manhattan-logo { font-size: 26px !important; font-weight: 900 !important; color: #FF4B4B !important; background: none !important; -webkit-text-fill-color: #FF4B4B !important; line-height: 1.2 !important; white-space: nowrap !important; }
     .manhattan-logo-main { font-size: 34px !important; font-weight: 900 !important; color: #FFFFFF !important; }
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
@@ -86,12 +84,15 @@ st.markdown("""
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
     audio { display: none !important; }
-    /* ===== RIGHT FLOATING BOT ===== */
+    /* ===== SIRI CIRCLE ONLY ===== */
     @keyframes floaty { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
     @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,75,75,0.6); } 70% { box-shadow: 0 0 0 16px rgba(255,75,75,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); } }
-    .floating-bot-bubble { background: white; color: #111 !important; padding: 12px 14px; border-radius: 18px 18px 4px 18px; font-size: 14px; font-weight: 600; width: 250px; margin-bottom: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; animation: floaty 2.5s ease-in-out infinite; }
-    .floating-bot-bubble p, .floating-bot-bubble b, .floating-bot-bubble span { color: #111 !important; }
-    .floating-bot-circle { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #FF4B4B, #FF8A00); display: flex; align-items: center; justify-content: center; font-size: 34px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; }
+    @keyframes siri-wave { 0%,100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.15); opacity: 1; } }
+    .siri-orb { width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%); display: flex; align-items: center; justify-content: center; font-size: 50px; border: 3px solid white; animation: siri-wave 1.2s ease-in-out infinite, pulse-ring 2s infinite; margin: 0 auto; box-shadow: 0 0 40px rgba(255,75,75,0.8); }
+    .siri-orb-idle { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #FF4B4B, #FF8A00); display: flex; align-items: center; justify-content: center; font-size: 36px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; }
+    .siri-box { background: #1E2130; padding: 22px; border-radius: 24px; border: 2px solid #FF4B4B; text-align: center; }
+    .siri-text { color: white !important; font-size: 15px !important; }
+    .siri-text b { color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,7 +122,7 @@ BOT_PERSONALITIES = {
     },
 }
 
-# ===== MALE, ALIK KARA VOICE - ChristopherNeural =====
+# ===== MALE, ALIK KARA VOICE =====
 def text_to_speech(text, lang="en"):
     clean = re.sub(r'[#*`_~>\[\]()|]', '', text)
     clean = re.sub(r'[^\w\s.,!?\'-]', ' ', clean)
@@ -218,7 +219,9 @@ if "bot_name" not in st.session_state: st.session_state.bot_name = "😊 Helper 
 if "bot_message" not in st.session_state: st.session_state.bot_message = None
 if "bot_audio" not in st.session_state: st.session_state.bot_audio = None
 if "bot_talk" not in st.session_state: st.session_state.bot_talk = True
-if "bot_open" not in st.session_state: st.session_state.bot_open = True
+if "siri_open" not in st.session_state: st.session_state.siri_open = False
+if "siri_last" not in st.session_state: st.session_state.siri_last = ""
+if "siri_reply" not in st.session_state: st.session_state.siri_reply = ""
 
 if not st.session_state.logged_in:
     st.markdown('<div class="manhattan-logo-main" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
@@ -313,7 +316,7 @@ with st.sidebar:
         st.session_state.logged_in=False; st.session_state.username=""; st.session_state.messages=[]; st.session_state.current_chat_id=None; st.rerun()
     st.divider()
     st.subheader("🤖 Mofisto Settings")
-    bot_on = st.toggle("🤖 Floating Bot ON / OFF", value=st.session_state.bot_enabled)
+    bot_on = st.toggle("🤖 Siri Bot ON / OFF", value=st.session_state.bot_enabled)
     st.session_state.bot_enabled = bot_on
     if bot_on:
         bot_choice = st.selectbox("Bot Chhana", list(BOT_PERSONALITIES.keys()), index=list(BOT_PERSONALITIES.keys()).index(st.session_state.bot_name))
@@ -325,18 +328,6 @@ with st.sidebar:
     voice_enabled = st.toggle("🔊 Voice Reply ON", value=st.session_state.voice_reply)
     st.session_state.voice_reply = voice_enabled
     voice_lang_opt = st.selectbox("🗣️ Voice Language", ["Auto", "English", "Nepali"], index=0)
-    st.divider()
-    st.subheader("🎤 Voice Input")
-    audio_input = st.audio_input("🎙️ Yaha thichera bola...", key="voice_input_main")
-    if audio_input is not None:
-        if st.button("🎤 Yo Awaz lai Text Banau", use_container_width=True, type="primary"):
-            with st.spinner("Awaz bujhdai chu..."):
-                audio_bytes = audio_input.read()
-                text, err = speech_to_text(audio_bytes)
-                if text:
-                    st.success(f"Timle bhaneko: **{text}**")
-                    st.session_state.pending_prompt = text; st.rerun()
-                else: st.error(err or "Awaz bujhina!")
     st.divider()
     st.subheader("📂 Chat History")
     if st.button("➕ New Chat", use_container_width=True, type="primary"):
@@ -400,9 +391,8 @@ PERSONALITY_PROMPTS = {
 }
 BASE_PROMPT = PERSONALITY_PROMPTS[personality]
 
-# MAIN - thulo bot hataiyo, floating bot matra
 st.markdown('<div class="manhattan-logo-main">MANHATTAN 🔥</div>', unsafe_allow_html=True)
-st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🤖 Mofisto is on the right side!")
+st.caption(f"Namaste, **{st.session_state.username}** 👋 • Tap the circle on the right to talk to Mofisto!")
 if st.session_state.rag_chunks:
     st.success(f"📚 RAG ON: {', '.join(st.session_state.rag_files)} bata answer dinchu!")
 if mode=="🎨 Image Generator": st.caption("🎨 **Image Mode ON**")
@@ -505,39 +495,70 @@ if prompt:
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
 
-# ==================== 🤖 RIGHT SIDE FLOATING BOT ====================
+# ==================== 🤖 SIRF CIRCLE MATRA - SIRI VOICE MODE ====================
 if st.session_state.bot_enabled:
     bot = BOT_PERSONALITIES[st.session_state.bot_name]
-    # Right side ma dhakelna
-    _f1, _f2 = st.columns([8, 2])
-    with _f2:
-        if st.session_state.bot_open:
-            st.markdown(f"""<div class="floating-bot-bubble">🤖 <b>{st.session_state.bot_name}:</b><br>{st.session_state.bot_message or bot['greeting']}</div>""", unsafe_allow_html=True)
-        st.markdown(f"""<div class="floating-bot-circle">{bot['avatar']}</div>""", unsafe_allow_html=True)
-        if st.button("🔊 Mofisto Bol", key="floating_mofisto_btn", use_container_width=True):
-            st.session_state.bot_message = bot['greeting']
-            st.session_state.bot_open = True
-            if st.session_state.bot_talk:
-                st.session_state.bot_audio = text_to_speech(bot['greeting'])
+    # Circle lai right side ma dhakelne - aru kei button chaina
+    _c1, _c2 = st.columns([9, 1])
+    with _c2:
+        # Circle button - yei matra dekhincha
+        if st.button("🤖", key="siri_circle_only", help="Tap to talk to Mofisto"):
+            st.session_state.siri_open = not st.session_state.siri_open
+            if st.session_state.siri_open:
+                st.session_state.siri_reply = bot['greeting']
+                if st.session_state.bot_talk:
+                    st.session_state.bot_audio = text_to_speech(bot['greeting'])
             st.rerun()
-        if st.button("💡 Help", key="float_help"):
-            st.session_state.bot_message = bot['help']
-            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(bot['help'])
-            st.rerun()
-        if st.button("🎲 Tip", key="float_tip"):
-            tip = random.choice(bot['tips'])
-            st.session_state.bot_message = f"Tip: {tip}"
-            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
-            st.rerun()
-        if st.button("😂 Joke", key="float_joke"):
-            joke = random.choice(["Why is there traffic in Kathmandu? Because everyone is going to use MANHATTAN!", "Does AI drink tea? Yes, data-tea!", "You and MANHATTAN are the best combo!"])
-            st.session_state.bot_message = joke
-            if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(joke)
-            st.rerun()
-        if st.button("❌ Close", key="float_close"):
-            st.session_state.bot_open = False
-            st.rerun()
-    if st.session_state.bot_audio:
-        play_hidden_audio(st.session_state.bot_audio)
+        if st.session_state.bot_audio:
+            play_hidden_audio(st.session_state.bot_audio)
+            st.session_state.bot_audio = None
+
+    # Circle thichyo bhane - SIRI jasto full voice conversation
+    if st.session_state.siri_open:
+        st.markdown('<div class="siri-box">', unsafe_allow_html=True)
+        st.markdown('<div class="siri-orb">🤖</div>', unsafe_allow_html=True)
+        st.markdown('<p class="siri-text" style="text-align:center; margin-top:12px;"><b>Mofisto is listening...</b><br>Bolera sodha, ma bolera nai answer dinchu!</p>', unsafe_allow_html=True)
+        if st.session_state.siri_reply:
+            st.markdown(f'<p class="siri-text" style="background:white; color:#111 !important; padding:12px; border-radius:16px; text-align:left;">🤖 <b style="color:#111 !important;">Mofisto:</b> <span style="color:#111 !important;">{st.session_state.siri_reply}</span></p>', unsafe_allow_html=True)
+        if st.session_state.siri_last:
+            st.markdown(f'<p class="siri-text">🧑 <b>You said:</b> {st.session_state.siri_last}</p>', unsafe_allow_html=True)
+        # Voice input - yaha bolne
+        siri_audio = st.audio_input("🎙️ Tap and speak...", key="siri_voice_input")
+        if siri_audio is not None:
+            siri_bytes = siri_audio.read()
+            # Euta audio lai 2 choti process nagarne
+            if siri_bytes and st.session_state.get("siri_processed") != len(siri_bytes):
+                st.session_state.siri_processed = len(siri_bytes)
+                with st.spinner("Suniraheko chu..."):
+                    user_text, err = speech_to_text(siri_bytes)
+                    if user_text:
+                        st.session_state.siri_last = user_text
+                        # Siri conversation - LLM sanga kura garne
+                        if not api_key:
+                            st.session_state.siri_reply = "Please add API key in Secrets."
+                        else:
+                            try:
+                                siri_llm = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=0.7)
+                                siri_msgs = [SystemMessage(content="You are Mofisto, a friendly male voice assistant. Answer in short, natural spoken English, max 2-3 sentences, like Siri. No markdown, no symbols. Speak like a real friend."), HumanMessage(content=user_text)]
+                                siri_res = siri_llm.invoke(siri_msgs)
+                                siri_answer = str(siri_res.content)
+                                st.session_state.siri_reply = siri_answer
+                                # Chat ma pani save garne
+                                st.session_state.messages.append({"role":"user","content":user_text})
+                                st.session_state.messages.append({"role":"assistant","content":siri_answer})
+                                # Male kara voice ma bolne
+                                if st.session_state.bot_talk:
+                                    st.session_state.bot_audio = text_to_speech(siri_answer)
+                                    play_hidden_audio(st.session_state.bot_audio)
+                                    st.session_state.bot_audio = None
+                            except Exception as e:
+                                st.session_state.siri_reply = "Sorry, I could not connect. Try again."
+                        st.rerun()
+                    else:
+                        st.session_state.siri_reply = "I could not hear you, please speak again."
+                        st.rerun()
+        # Circle feri thichyo bhane banda garne - yei euta matra close option, circle bata nai
+        st.markdown('<p class="siri-text" style="font-size:12px; opacity:0.7;">Circle feri thichyo bhane Siri mode banda huncha.</p>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

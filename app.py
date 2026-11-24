@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-import datetime, urllib.parse, random, hashlib, sqlite3, json, io, re
+import datetime, urllib.parse, random, hashlib, sqlite3, json, io, re, base64
 import numpy as np
 
 try:
@@ -27,71 +27,32 @@ st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide",
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
-    /* Default text seto - tara button ra seto box lai chhune haina */
     .stApp > div p, .stApp h1, .stApp h2, .stApp h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #FFFFFF !important; }
-
-    /* ===== BUTTON FIX - YEHI MAIN HO ===== */
-    /* Sabai button lai DARK banaune, natra seto ma seto huncha */
-    div[data-testid="stButton"] > button,
-    div[data-testid="stDownloadButton"] > button,
-    button[kind="secondary"], button[kind="primary"] {
-        background-color: #1E2130 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #3A4157 !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
+    div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button, button[kind="secondary"], button[kind="primary"] {
+        background-color: #1E2130 !important; color: #FFFFFF !important; border: 1px solid #3A4157 !important; border-radius: 12px !important; font-weight: 700 !important;
     }
     div[data-testid="stButton"] > button p, div[data-testid="stButton"] > button div, div[data-testid="stButton"] > button span,
-    button[kind="secondary"] p, button[kind="secondary"] div, button[kind="primary"] p, button[kind="primary"] div {
-        color: #FFFFFF !important;
-    }
-    /* Primary button matra rato */
+    button[kind="secondary"] p, button[kind="secondary"] div, button[kind="primary"] p, button[kind="primary"] div { color: #FFFFFF !important; }
     div[data-testid="stButton"] > button[kind="primary"] { background-color: #FF4B4B !important; border-color: #FF4B4B !important; }
-    /* Hover garda pani dekhos */
     div[data-testid="stButton"] > button:hover { background-color: #FF4B4B !important; color: white !important; border-color: #FF4B4B !important; }
-
-    /* Input box */
-    input[type="text"], input[type="password"] {
-        background-color: #1E2130 !important;
-        color: #FFFFFF !important;
-        border: 2px solid #FF4B4B !important;
-        border-radius: 12px !important;
-        font-size: 16px !important;
-        padding: 12px 40px 12px 12px !important;
-    }
+    input[type="text"], input[type="password"] { background-color: #1E2130 !important; color: #FFFFFF !important; border: 2px solid #FF4B4B !important; border-radius: 12px !important; font-size: 16px !important; padding: 12px 40px 12px 12px !important; }
     input::placeholder { color: #BBBBBB !important; opacity: 1 !important; }
     input:focus { color: #FFFFFF !important; border-color: #FF8A00 !important; }
-
-    /* Password Eye */
     button[data-testid="stPasswordVisibilityButton"] { background-color: #1E2130 !important; color: #FFFFFF !important; border: none !important; }
-    button[data-testid="stPasswordVisibilityButton"] svg, div[data-testid="stTextInput"] button svg, div[data-testid="stTextInput"] svg {
-        fill: #FFFFFF !important; color: #FFFFFF !important; stroke: #FFFFFF !important;
-    }
+    button[data-testid="stPasswordVisibilityButton"] svg, div[data-testid="stTextInput"] button svg, div[data-testid="stTextInput"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; stroke: #FFFFFF !important; }
     div[data-testid="stTextInput"] > div { background-color: #1E2130 !important; }
-
     label[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; }
-
-    /* Tabs */
     button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; }
     button[data-baseweb="tab"][aria-selected="true"] { background-color: #FF4B4B !important; color: #FFFFFF !important; }
     button[data-baseweb="tab"] p { color: #FFFFFF !important; }
-
-    /* Success / Error box */
-    div[data-testid="stAlert"], div[data-testid="stSuccess"], div[data-testid="stError"], div[data-testid="stInfo"], div[data-testid="stWarning"] {
-        background-color: #2A2A3A !important; border: 2px solid #FF4B4B !important; border-radius: 12px !important;
-    }
-    div[data-testid="stAlert"] p, div[data-testid="stAlert"] div, div[data-testid="stAlert"] span,
-    div[data-testid="stSuccess"] p, div[data-testid="stError"] p, div[data-testid="stInfo"] p { color: #FFFFFF !important; opacity: 1 !important; font-size: 15px !important; font-weight: 600 !important; }
-
-    /* ===== BOT SPEECH - SETO BOX MA KALO LEKHA - YEHI FIX ===== */
+    div[data-testid="stAlert"], div[data-testid="stSuccess"], div[data-testid="stError"], div[data-testid="stInfo"], div[data-testid="stWarning"] { background-color: #2A2A3A !important; border: 2px solid #FF4B4B !important; border-radius: 12px !important; }
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] div, div[data-testid="stAlert"] span, div[data-testid="stSuccess"] p, div[data-testid="stError"] p, div[data-testid="stInfo"] p { color: #FFFFFF !important; opacity: 1 !important; font-size: 15px !important; font-weight: 600 !important; }
     .bot-speech { background: #FFFFFF !important; padding: 12px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; font-weight: 600; margin-top: 10px; text-align: left; }
     .bot-speech, .bot-speech p, .bot-speech b, .bot-speech span, .bot-speech div { color: #111111 !important; }
-    /* Chat input - seto box */
     div[data-testid="stChatInput"] textarea { color: #111111 !important; }
     div[data-testid="stChatInput"] textarea::placeholder { color: #888888 !important; }
     div[data-testid="stChatInput"] button { background-color: #FF4B4B !important; }
     div[data-testid="stChatInput"] button svg { fill: white !important; color: white !important; }
-
     .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; }
     .prompt-card p, .prompt-title { color: white !important; }
     .prompt-desc { color: #CCCCCC !important; }
@@ -111,42 +72,43 @@ st.markdown("""
     div[data-testid="stExpander"] p, div[data-testid="stExpander"] summary { color: #FFFFFF !important; }
     div[data-testid="stMetric"] p, div[data-testid="stMetric"] div { color: #FFFFFF !important; }
     div[data-baseweb="select"] div, div[data-baseweb="select"] span { color: #FFFFFF !important; }
-    /* Toggle / Radio ko text */
     label[data-testid="stToggle"] p, div[data-testid="stRadio"] label p { color: #FFFFFF !important; }
-    /* File uploader - seto box bhitra pani */
     div[data-testid="stFileUploader"] p, div[data-testid="stFileUploader"] span, div[data-testid="stFileUploader"] small { color: #FFFFFF !important; }
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
-    /* Audio input */
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
+    /* Audio player hataune - pachi pani dekhidaina */
+    audio { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
+# ==================== 🤖 MOFISTO BOT - ENGLISH, SIRI JASTO ====================
 BOT_PERSONALITIES = {
     "😊 Helper Mofisto": {
         "avatar": "🤖",
-        "greeting": "Hey! Ma Mofisto ho! Timi lai ke help chahiyo? Photo banaune, video banaune, ki homework? J pani sodha hai!",
-        "help": "La, ma Mofisto le help garchu! Sidebar ma Mode change gara — Photo chahiyo bhane Image, Video chahiyo bhane Video. Bolera sodhna Mic use gara!",
-        "tips": ["Photo banauna Image Mode ma jau", "Video banauna Video Mode ma jau", "PDF halyo bhane RAG le tyai bata answer dincha", "Bolera sodhna Mic dabau"],
-        "encourage": "Timle ramro gardai chau! Aru kehi sodhne? Ma Mofisto yei chu hai! 🔥"
+        "greeting": "Hey! I am Mofisto! What do you need? Want a photo, a video, or help with homework? Just ask me!",
+        "help": "Got it! I am Mofisto, I will help you! Change the Mode from the sidebar. For photos, choose Image. For videos, choose Video. Or just speak using the mic!",
+        "tips": ["Go to Image Mode to make a photo", "Go to Video Mode to make a video", "Upload a PDF and I will answer from it", "Tap the mic to speak to me"],
+        "encourage": "You are doing great! Anything else? I am Mofisto, I am right here! 🔥"
     },
     "😂 Funny Mofisto": {
         "avatar": "😹",
-        "greeting": "Yo yo! Ma Mofisto! Bored bhayo? Ma chu ni! Jokes sunne ki photo banaune? Bhan na!",
-        "help": "Hahaha tension nalinu! Ma Mofisto chu! Lekhna aalchi lagyo bhane bolera sodha, ma sunera bujhchu!",
-        "tips": ["Bored bhayo bhane malai joke suna bhan", "Photo banauna 'A boy in Himalayas' lekha", "Video banauna 'Running in rain' lekha"],
-        "encourage": "Hahaha timi ta pro nai rahechau! Aru ke garne? 😂"
+        "greeting": "Yo yo! I am Mofisto! Are you bored? I am here! Want a joke or a photo? Tell me!",
+        "help": "Haha, don't stress! I am Mofisto! Too lazy to type? Just speak, I will listen!",
+        "tips": ["Ask me to tell you a joke if you are bored", "Type A boy in Himalayas to make a photo", "Type Running in rain to make a video"],
+        "encourage": "Haha, you are already a pro! What next? 😂"
     },
     "🔥 Motivator Mofisto": {
         "avatar": "🦸",
-        "greeting": "Let's go! Ma timro motivator Mofisto! Aaja kehi thulo garne ho? Suru garam!",
-        "help": "Har nman! Step by step garam. Pahila ke chahiyo bhan — Chat, Image, ki Video? Ma Mofisto le guide garchu!",
-        "tips": ["Aaja 1 ota naya kura sikha", "Timi sakchau, try gara!", "PDF halera RAG bata padha"],
-        "encourage": "That's the spirit! Timle sakchau! Agadi badha! 🔥"
+        "greeting": "Let's go! I am your motivator Mofisto! Want to do something big today? Let's start!",
+        "help": "Don't give up! Let's do it step by step. Tell me what you want - Chat, Image, or Video? I will guide you!",
+        "tips": ["Learn one new thing today", "You can do it, just try!", "Upload a PDF and study with me"],
+        "encourage": "That is the spirit! You can do it! Keep going! 🔥"
     },
 }
 
+# ===== SIRI / GEMINI JASTO VOICE - US ENGLISH ACCENT =====
 def text_to_speech(text, lang="en"):
     if not HAS_TTS: return None
     clean = re.sub(r'[#*`_~>\[\]()|]', '', text)
@@ -154,11 +116,18 @@ def text_to_speech(text, lang="en"):
     clean = clean[:800]
     if not clean.strip(): return None
     try:
-        if any('\u0900' <= c <= '\u097F' for c in text): lang = "ne"
-        tts = gTTS(text=clean, lang=lang, slow=False)
+        # tld='com' = US accent, Siri / Gemini jasto normal English
+        # tld='co.uk' bhaye British huncha, tld='com' bhaye American
+        tts = gTTS(text=clean, lang="en", tld="com", slow=False)
         buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
         return buf.read()
     except: return None
+
+def play_hidden_audio(audio_bytes):
+    # Audio bar NAAUNE, tara awaz automatic bajne
+    if not audio_bytes: return
+    b64 = base64.b64encode(audio_bytes).decode()
+    st.markdown(f"""<audio autoplay="true" style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>""", unsafe_allow_html=True)
 
 def speech_to_text(audio_bytes):
     if not HAS_STT: return None, "SpeechRecognition install chaina!"
@@ -333,7 +302,8 @@ with st.sidebar:
                 st.session_state.bot_message = f"Tip: {tip}"
                 if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(tip)
                 st.rerun()
-        if st.session_state.bot_audio: st.audio(st.session_state.bot_audio, format="audio/mp3")
+        # Audio bar HATAIYO - awaz matra bajcha, bar dekhidaina
+        if st.session_state.bot_audio: play_hidden_audio(st.session_state.bot_audio)
         if st.button("🔊 Bot lai Bolau", use_container_width=True):
             msg = st.session_state.bot_message or bot['greeting']
             st.session_state.bot_audio = text_to_speech(msg)
@@ -432,7 +402,8 @@ if st.session_state.bot_enabled:
                 st.rerun()
         with col_bot2:
             st.markdown(f"<div class='bot-speech'>🤖 <b>{st.session_state.bot_name}:</b> {st.session_state.bot_message or bot['greeting']}</div>", unsafe_allow_html=True)
-            if st.session_state.bot_audio: st.audio(st.session_state.bot_audio, format="audio/mp3")
+            # 👇 YAHI THAU - Audio bar HATAIYO, awaz matra bajcha
+            if st.session_state.bot_audio: play_hidden_audio(st.session_state.bot_audio)
             c_help, c_tip, c_joke = st.columns(3)
             with c_help:
                 if st.button("💡 Help Chahiyo", key="bot_help_main"):
@@ -447,7 +418,7 @@ if st.session_state.bot_enabled:
                     st.rerun()
             with c_joke:
                 if st.button("😂 Joke Suna", key="bot_joke_main"):
-                    joke = random.choice(["Kathmandu ma traffic kina cha? Kina bhane sabai MANHATTAN use garna hidya! 😂", "AI le pani chiya piuncha? Ho, data-chiya! ☕", "Timi ra MANHATTAN best combo ho! 🔥"])
+                    joke = random.choice(["Why is there traffic in Kathmandu? Because everyone is going to use MANHATTAN! 😂", "Does AI drink tea? Yes, data-tea! ☕", "You and MANHATTAN are the best combo! 🔥"])
                     st.session_state.bot_message = joke
                     if st.session_state.bot_talk: st.session_state.bot_audio = text_to_speech(joke)
                     st.rerun()
@@ -458,7 +429,7 @@ elif mode=="🎬 Video Generator": st.caption("🎬 **Video Mode ON**")
 else: st.caption(f"Chatting with **{personality}** • Model: `{model_choice}`")
 if len(st.session_state.messages)==0:
     st.markdown("### 👋 Ke garne? Choose gara:")
-    prompts=[("📚 RAG Test","PDF bata sodha","Yo document ma ke cha? Summary deu."),("🎨 Photo Banau","A boy in Himalayas","🎨 A boy standing in Himalayas at sunset, cinematic"),("🎬 Video Banau","A boy running in rain","🎬 A boy running in Kathmandu rain, cinematic"),("🤖 Mofisto sanga Kura","Bot sanga kura gara","Hello Mofisto, malai help gara na!")]
+    prompts=[("📚 RAG Test","PDF bata sodha","Yo document ma ke cha? Summary deu."),("🎨 Photo Banau","A boy in Himalayas","🎨 A boy standing in Himalayas at sunset, cinematic"),("🎬 Video Banau","A boy running in rain","🎬 A boy running in Kathmandu rain, cinematic"),("🤖 Mofisto sanga Kura","Bot sanga kura gara","Hello Mofisto, can you help me?")]
     c1,c2,c3,c4=st.columns(4); cols=[c1,c2,c3,c4]
     for i,(title,desc,prompt_text) in enumerate(prompts):
         with cols[i]:
@@ -473,7 +444,7 @@ for msg in st.session_state.messages:
             st.markdown(msg.get("content","")); st.video(msg.get("video_url")); st.link_button("⬇️ Video Download", msg.get("video_url"), use_container_width=True)
         else:
             st.markdown(msg.get("content",""))
-            if msg.get("role")=="assistant" and msg.get("audio"): st.audio(msg.get("audio"), format="audio/mp3")
+            if msg.get("role")=="assistant" and msg.get("audio"): play_hidden_audio(msg.get("audio"))
             if msg.get("sources"):
                 with st.expander("📚 RAG Source"):
                     for s in msg["sources"]: st.caption(s[:600])
@@ -498,8 +469,8 @@ if prompt:
             with st.spinner("🎬 Video banaudai cha..."):
                 st.markdown(f"La timro video banayo! 🔥\n**Prompt:** `{clean_prompt}`")
                 st.video(vid_url); st.link_button("⬇️ Video Download", vid_url, use_container_width=True)
-                audio_bytes = text_to_speech("La timro video banayo, hera ta!") if st.session_state.voice_reply else None
-                if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
+                audio_bytes = text_to_speech("Here is your video, check it out!") if st.session_state.voice_reply else None
+                if audio_bytes: play_hidden_audio(audio_bytes)
                 st.session_state.messages.append({"role":"assistant","content":f"La timro video banayo! 🔥\n**Prompt:** `{clean_prompt}`","type":"video","video_url":vid_url,"audio":audio_bytes})
                 st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
     elif want_image:
@@ -513,8 +484,8 @@ if prompt:
             with st.spinner("🎨 Photo banaudai cha..."):
                 st.markdown(f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`")
                 st.image(img_url, use_container_width=True); st.link_button("⬇️ Photo Download", img_url, use_container_width=True)
-                audio_bytes = text_to_speech("La timro photo banayo, hera ta katti ramro!") if st.session_state.voice_reply else None
-                if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
+                audio_bytes = text_to_speech("Here is your photo, look how nice it is!") if st.session_state.voice_reply else None
+                if audio_bytes: play_hidden_audio(audio_bytes)
                 st.session_state.messages.append({"role":"assistant","content":f"La timro photo banayo! 🔥\n**Prompt:** `{clean_prompt}`","type":"image","image_url":img_url,"audio":audio_bytes})
                 st.session_state.current_chat_id = save_current_chat(st.session_state.username, [{k:v for k,v in m.items() if k!="audio"} for m in st.session_state.messages], st.session_state.current_chat_id)
     else:
@@ -541,9 +512,8 @@ if prompt:
                         audio_bytes=None
                         if st.session_state.voice_reply:
                             with st.spinner("🔊 Voice banaudai..."):
-                                lang_code = "ne" if voice_lang_opt=="Nepali" else "en"
-                                audio_bytes = text_to_speech(answer, lang=lang_code)
-                                if audio_bytes: st.audio(audio_bytes, format="audio/mp3")
+                                audio_bytes = text_to_speech(answer)
+                                if audio_bytes: play_hidden_audio(audio_bytes)
                         if sources:
                             with st.expander("📚 RAG Source"):
                                 for s in sources: st.caption(s[:600])

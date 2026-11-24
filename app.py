@@ -26,30 +26,83 @@ st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide",
 
 st.markdown("""
 <style>
-    .main { background-color: #0E1117; }
+    /* ===== FIX - SABAI LEKHA SETO, UJALYO HUNNA ===== */
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
-    .stApp p, .stApp label, .stApp span, .stApp div { color: #FFFFFF !important; }
+    /* Streamlit ko sabai default text lai force white */
+    .stApp p, .stApp label, .stApp span, .stApp div, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp li, .stApp small {
+        color: #FFFFFF !important;
+        opacity: 1 !important;
+    }
     h1, h2, h3 { color: white !important; }
+
+    /* Input box */
     input[type="text"], input[type="password"] {
         background-color: #1E2130 !important;
         color: #FFFFFF !important;
         border: 2px solid #FF4B4B !important;
         border-radius: 12px !important;
         font-size: 16px !important;
-        padding: 12px !important;
+        padding: 12px 40px 12px 12px !important;
     }
-    input::placeholder { color: #AAAAAA !important; opacity: 1 !important; }
+    input::placeholder { color: #BBBBBB !important; opacity: 1 !important; }
     input:focus { color: #FFFFFF !important; border-color: #FF8A00 !important; box-shadow: 0 0 0 2px #FF4B4B55 !important; }
-    label[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; }
-    button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; border-radius: 10px 10px 0 0 !important; padding: 10px 20px !important; }
+
+    /* 👁️ PASSWORD VIEW EYE BUTTON - YEI THULO FIX HO */
+    button[data-testid="stPasswordVisibilityButton"] {
+        background-color: #1E2130 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }
+    button[data-testid="stPasswordVisibilityButton"] svg,
+    div[data-testid="stTextInput"] button svg,
+    div[data-testid="stTextInput"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        stroke: #FFFFFF !important;
+    }
+    div[data-testid="stTextInput"] > div { background-color: #1E2130 !important; }
+    div[data-testid="stTextInput"] button { background-color: transparent !important; }
+
+    /* Label */
+    label[data-testid="stWidgetLabel"] p, label[data-testid="stWidgetLabel"] { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; opacity: 1 !important; }
+
+    /* Tabs Login / Signup */
+    button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; border-radius: 10px 10px 0 0 !important; }
     button[data-baseweb="tab"][aria-selected="true"] { background-color: #FF4B4B !important; color: #FFFFFF !important; }
-    button[data-baseweb="tab"] p { color: #FFFFFF !important; }
-    button[kind="primary"] { background-color: #FF4B4B !important; color: white !important; font-weight: 800 !important; font-size: 16px !important; border-radius: 12px !important; padding: 10px !important; }
-    button[kind="primary"] p { color: white !important; }
-    div[data-testid="stAlert"] p { color: #FFFFFF !important; }
+    button[data-baseweb="tab"] p, button[data-baseweb="tab"] div { color: #FFFFFF !important; }
+
+    /* Buttons */
+    button[kind="primary"] { background-color: #FF4B4B !important; color: white !important; font-weight: 800 !important; font-size: 16px !important; border-radius: 12px !important; }
+    button[kind="primary"] p, button[kind="primary"] div { color: white !important; }
+    button[kind="secondary"] p, button[kind="secondary"] div { color: #FFFFFF !important; }
+
+    /* 🔥 NAYA AUNE MESSAGE HARU - Signup done, Welcome back, Lets start, Error sabai */
+    div[data-testid="stAlert"], div[data-testid="stSuccess"], div[data-testid="stError"], div[data-testid="stInfo"], div[data-testid="stWarning"] {
+        background-color: #2A2A3A !important;
+        border: 2px solid #FF4B4B !important;
+        border-radius: 12px !important;
+    }
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] div, div[data-testid="stAlert"] span,
+    div[data-testid="stSuccess"] p, div[data-testid="stError"] p, div[data-testid="stInfo"] p, div[data-testid="stWarning"] p {
+        color: #FFFFFF !important;
+        opacity: 1 !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stAlert"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
+
+    /* Caption / choto lekha haru pani seto */
+    div[data-testid="stCaptionContainer"] p { color: #FFFFFF !important; opacity: 1 !important; }
+    div[data-testid="stSpinner"] p, div[data-testid="stSpinner"] div { color: #FFFFFF !important; }
+    div[data-testid="stExpander"] p, div[data-testid="stExpander"] summary { color: #FFFFFF !important; }
+    div[data-testid="stMetric"] p, div[data-testid="stMetric"] div { color: #FFFFFF !important; }
+    div[data-baseweb="select"] div, div[data-baseweb="select"] span { color: #FFFFFF !important; }
+    /* Dropdown kholda ko list pani dark */
+    div[data-baseweb="popover"] div, div[data-baseweb="menu"] div { color: #FFFFFF !important; background-color: #1E2130 !important; }
+
     .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; }
     .prompt-title { font-size: 16px; font-weight: 700; color: white; }
-    .prompt-desc { font-size: 12px; color: #9AA0B0; margin-top: 4px; }
+    .prompt-desc { font-size: 12px; color: #CCCCCC !important; margin-top: 4px; }
     .footer { text-align: center; color: #FFFFFF !important; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }

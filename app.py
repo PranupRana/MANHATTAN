@@ -26,14 +26,29 @@ st.set_page_config(page_title="MANHATTAN 🔥", page_icon="🔥", layout="wide",
 
 st.markdown("""
 <style>
-    /* ===== FIX - SABAI LEKHA SETO, UJALYO HUNNA ===== */
     .stApp { background: linear-gradient(135deg, #0E1117 0%, #1A1B2E 100%); }
-    /* Streamlit ko sabai default text lai force white */
-    .stApp p, .stApp label, .stApp span, .stApp div, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp li, .stApp small {
+    /* Default text seto - tara button ra seto box lai chhune haina */
+    .stApp > div p, .stApp h1, .stApp h2, .stApp h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #FFFFFF !important; }
+
+    /* ===== BUTTON FIX - YEHI MAIN HO ===== */
+    /* Sabai button lai DARK banaune, natra seto ma seto huncha */
+    div[data-testid="stButton"] > button,
+    div[data-testid="stDownloadButton"] > button,
+    button[kind="secondary"], button[kind="primary"] {
+        background-color: #1E2130 !important;
         color: #FFFFFF !important;
-        opacity: 1 !important;
+        border: 1px solid #3A4157 !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
     }
-    h1, h2, h3 { color: white !important; }
+    div[data-testid="stButton"] > button p, div[data-testid="stButton"] > button div, div[data-testid="stButton"] > button span,
+    button[kind="secondary"] p, button[kind="secondary"] div, button[kind="primary"] p, button[kind="primary"] div {
+        color: #FFFFFF !important;
+    }
+    /* Primary button matra rato */
+    div[data-testid="stButton"] > button[kind="primary"] { background-color: #FF4B4B !important; border-color: #FF4B4B !important; }
+    /* Hover garda pani dekhos */
+    div[data-testid="stButton"] > button:hover { background-color: #FF4B4B !important; color: white !important; border-color: #FF4B4B !important; }
 
     /* Input box */
     input[type="text"], input[type="password"] {
@@ -45,83 +60,69 @@ st.markdown("""
         padding: 12px 40px 12px 12px !important;
     }
     input::placeholder { color: #BBBBBB !important; opacity: 1 !important; }
-    input:focus { color: #FFFFFF !important; border-color: #FF8A00 !important; box-shadow: 0 0 0 2px #FF4B4B55 !important; }
+    input:focus { color: #FFFFFF !important; border-color: #FF8A00 !important; }
 
-    /* 👁️ PASSWORD VIEW EYE BUTTON - YEI THULO FIX HO */
-    button[data-testid="stPasswordVisibilityButton"] {
-        background-color: #1E2130 !important;
-        color: #FFFFFF !important;
-        border: none !important;
-    }
-    button[data-testid="stPasswordVisibilityButton"] svg,
-    div[data-testid="stTextInput"] button svg,
-    div[data-testid="stTextInput"] svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-        stroke: #FFFFFF !important;
+    /* Password Eye */
+    button[data-testid="stPasswordVisibilityButton"] { background-color: #1E2130 !important; color: #FFFFFF !important; border: none !important; }
+    button[data-testid="stPasswordVisibilityButton"] svg, div[data-testid="stTextInput"] button svg, div[data-testid="stTextInput"] svg {
+        fill: #FFFFFF !important; color: #FFFFFF !important; stroke: #FFFFFF !important;
     }
     div[data-testid="stTextInput"] > div { background-color: #1E2130 !important; }
-    div[data-testid="stTextInput"] button { background-color: transparent !important; }
 
-    /* Label */
-    label[data-testid="stWidgetLabel"] p, label[data-testid="stWidgetLabel"] { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; opacity: 1 !important; }
+    label[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; }
 
-    /* Tabs Login / Signup */
-    button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; border-radius: 10px 10px 0 0 !important; }
+    /* Tabs */
+    button[data-baseweb="tab"] { background-color: #1E2130 !important; color: #FFFFFF !important; font-size: 16px !important; font-weight: 700 !important; }
     button[data-baseweb="tab"][aria-selected="true"] { background-color: #FF4B4B !important; color: #FFFFFF !important; }
-    button[data-baseweb="tab"] p, button[data-baseweb="tab"] div { color: #FFFFFF !important; }
+    button[data-baseweb="tab"] p { color: #FFFFFF !important; }
 
-    /* Buttons */
-    button[kind="primary"] { background-color: #FF4B4B !important; color: white !important; font-weight: 800 !important; font-size: 16px !important; border-radius: 12px !important; }
-    button[kind="primary"] p, button[kind="primary"] div { color: white !important; }
-    button[kind="secondary"] p, button[kind="secondary"] div { color: #FFFFFF !important; }
-
-    /* 🔥 NAYA AUNE MESSAGE HARU - Signup done, Welcome back, Lets start, Error sabai */
+    /* Success / Error box */
     div[data-testid="stAlert"], div[data-testid="stSuccess"], div[data-testid="stError"], div[data-testid="stInfo"], div[data-testid="stWarning"] {
-        background-color: #2A2A3A !important;
-        border: 2px solid #FF4B4B !important;
-        border-radius: 12px !important;
+        background-color: #2A2A3A !important; border: 2px solid #FF4B4B !important; border-radius: 12px !important;
     }
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] div, div[data-testid="stAlert"] span,
-    div[data-testid="stSuccess"] p, div[data-testid="stError"] p, div[data-testid="stInfo"] p, div[data-testid="stWarning"] p {
-        color: #FFFFFF !important;
-        opacity: 1 !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-    }
-    div[data-testid="stAlert"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
+    div[data-testid="stSuccess"] p, div[data-testid="stError"] p, div[data-testid="stInfo"] p { color: #FFFFFF !important; opacity: 1 !important; font-size: 15px !important; font-weight: 600 !important; }
 
-    /* Caption / choto lekha haru pani seto */
-    div[data-testid="stCaptionContainer"] p { color: #FFFFFF !important; opacity: 1 !important; }
-    div[data-testid="stSpinner"] p, div[data-testid="stSpinner"] div { color: #FFFFFF !important; }
-    div[data-testid="stExpander"] p, div[data-testid="stExpander"] summary { color: #FFFFFF !important; }
-    div[data-testid="stMetric"] p, div[data-testid="stMetric"] div { color: #FFFFFF !important; }
-    div[data-baseweb="select"] div, div[data-baseweb="select"] span { color: #FFFFFF !important; }
-    /* Dropdown kholda ko list pani dark */
-    div[data-baseweb="popover"] div, div[data-baseweb="menu"] div { color: #FFFFFF !important; background-color: #1E2130 !important; }
+    /* ===== BOT SPEECH - SETO BOX MA KALO LEKHA - YEHI FIX ===== */
+    .bot-speech { background: #FFFFFF !important; padding: 12px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; font-weight: 600; margin-top: 10px; text-align: left; }
+    .bot-speech, .bot-speech p, .bot-speech b, .bot-speech span, .bot-speech div { color: #111111 !important; }
+    /* Chat input - seto box */
+    div[data-testid="stChatInput"] textarea { color: #111111 !important; }
+    div[data-testid="stChatInput"] textarea::placeholder { color: #888888 !important; }
+    div[data-testid="stChatInput"] button { background-color: #FF4B4B !important; }
+    div[data-testid="stChatInput"] button svg { fill: white !important; color: white !important; }
 
     .prompt-card { background: #1E2130; padding: 16px; border-radius: 16px; border: 1px solid #2E3440; text-align: center; margin-bottom: 10px; }
-    .prompt-title { font-size: 16px; font-weight: 700; color: white; }
-    .prompt-desc { font-size: 12px; color: #CCCCCC !important; margin-top: 4px; }
+    .prompt-card p, .prompt-title { color: white !important; }
+    .prompt-desc { color: #CCCCCC !important; }
     .footer { text-align: center; color: #FFFFFF !important; font-size: 12px; margin-top: 40px; }
     .manhattan-logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF8A00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     div[data-testid="stChatMessage"] { border-radius: 16px; background-color: #232838 !important; border: 1px solid #3A4157 !important; }
-    div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span { color: #FFFFFF !important; font-size: 16px !important; line-height: 1.6 !important; }
-    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label { color: #E0E0E0 !important; }
+    div[data-testid="stChatMessage"] p, div[data-testid="stChatMessage"] li, div[data-testid="stChatMessage"] span { color: #FFFFFF !important; font-size: 16px !important; }
     .rag-box { background: #1A2E1A; padding: 12px; border-radius: 12px; border: 1px solid #2E7D32; margin-bottom: 10px; }
+    .rag-box p, .rag-box b, .rag-box div { color: #FFFFFF !important; }
     .voice-box { background: #2A1A3E; padding: 12px; border-radius: 12px; border: 1px solid #7B2FFF; margin-bottom: 10px; }
     .bot-card { background: linear-gradient(135deg, #2A1A3E 0%, #1E2130 100%); padding: 16px; border-radius: 20px; border: 2px solid #FF4B4B; text-align: center; margin-bottom: 12px; }
     .bot-avatar { font-size: 64px; line-height: 1; }
-    .bot-name { font-size: 18px; font-weight: 800; color: white; margin-top: 4px; }
-    .bot-speech { background: white; color: #111 !important; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; font-weight: 600; margin-top: 10px; text-align: left; }
-    .bot-speech p, .bot-speech b { color: #111 !important; }
+    .bot-name { font-size: 18px; font-weight: 800; color: white !important; margin-top: 4px; }
     .login-card { background: #1E2130; padding: 24px; border-radius: 20px; border: 2px solid #FF4B4B; }
+    div[data-testid="stCaptionContainer"] p { color: #FFFFFF !important; }
+    div[data-testid="stSpinner"] p { color: #FFFFFF !important; }
+    div[data-testid="stExpander"] p, div[data-testid="stExpander"] summary { color: #FFFFFF !important; }
+    div[data-testid="stMetric"] p, div[data-testid="stMetric"] div { color: #FFFFFF !important; }
+    div[data-baseweb="select"] div, div[data-baseweb="select"] span { color: #FFFFFF !important; }
+    /* Toggle / Radio ko text */
+    label[data-testid="stToggle"] p, div[data-testid="stRadio"] label p { color: #FFFFFF !important; }
+    /* File uploader - seto box bhitra pani */
+    div[data-testid="stFileUploader"] p, div[data-testid="stFileUploader"] span, div[data-testid="stFileUploader"] small { color: #FFFFFF !important; }
+    div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
+    /* Audio input */
+    div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
 </style>
 """, unsafe_allow_html=True)
 
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
-# ==================== 🤖 MOFISTO BOT ====================
 BOT_PERSONALITIES = {
     "😊 Helper Mofisto": {
         "avatar": "🤖",
@@ -171,7 +172,6 @@ def speech_to_text(audio_bytes):
     except sr.UnknownValueError: return None, "Awaz bujhina, feri bolna! 🎤"
     except Exception as e: return None, f"Voice error: {e}"
 
-# ==================== DB - LOGIN + HISTORY ====================
 DB_PATH = "manhattan.db"
 def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -219,7 +219,6 @@ if "bot_message" not in st.session_state: st.session_state.bot_message = None
 if "bot_audio" not in st.session_state: st.session_state.bot_audio = None
 if "bot_talk" not in st.session_state: st.session_state.bot_talk = True
 
-# ==================== LOGIN PAGE ====================
 if not st.session_state.logged_in:
     st.markdown('<div class="manhattan-logo" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#FFFFFF; font-size:16px;'>Don't use others AI. I built my own.</p>", unsafe_allow_html=True)
@@ -272,7 +271,6 @@ if not st.session_state.logged_in:
     st.markdown('<div class="footer">MANHATTAN AI · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)
     st.stop()
 
-# ==================== HELPERS ====================
 def chunk_text(text, chunk_size=800, overlap=150):
     chunks=[]; start=0
     while start < len(text):
@@ -306,7 +304,6 @@ def make_video_url(prompt, duration=5, aspect="16:9"):
     w,h=(1280,720) if aspect=="16:9" else (720,1280) if aspect=="9:16" else (1024,1024)
     return f"https://gen.pollinations.ai/video/{clean}?width={w}&height={h}&seed={seed}&duration={duration}&nologo=true&model=veo"
 
-# ---------- SIDEBAR ----------
 with st.sidebar:
     st.markdown('<div class="manhattan-logo">MANHATTAN 🔥</div>', unsafe_allow_html=True)
     st.caption(f"👤 Logged in: **{st.session_state.username}**")
@@ -421,7 +418,6 @@ PERSONALITY_PROMPTS = {
 }
 BASE_PROMPT = PERSONALITY_PROMPTS[personality]
 
-# ---------- MAIN ----------
 st.title("MANHATTAN 🔥")
 st.caption(f"Namaste, **{st.session_state.username}** 👋 • 🤖 Mofisto le help garcha!")
 if st.session_state.bot_enabled:

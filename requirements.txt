@@ -1,8 +1,8 @@
 streamlit
 langchain-openai
 langchain-core
-PyMuPDF
 scikit-learn
+PyMuPDF
 numpy
 gTTS
 SpeechRecognition

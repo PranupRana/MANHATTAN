@@ -84,12 +84,11 @@ st.markdown("""
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
     audio { display: none !important; }
-    /* ===== JARVIS - CIRCLE + GOOGLE LISTENING ===== */
+    /* ===== JARVIS - ASLI BUTTON NAI CIRCLE, FIXED ===== */
     @keyframes floaty { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
     @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,75,75,0.6); } 70% { box-shadow: 0 0 0 16px rgba(255,75,75,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); } }
     @keyframes google-bar { 0%,100% { transform: scaleY(0.6); } 50% { transform: scaleY(1.4); } }
-    .jarvis-circle { width: 88px; height: 88px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%); display: flex; align-items: center; justify-content: center; font-size: 44px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; box-shadow: 0 0 30px rgba(255,75,75,0.8); position: fixed; bottom: 95px; right: 18px; z-index: 9999; }
-    .google-overlay { position: fixed; inset: 0; background: #1A1A1A; z-index: 9990; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .google-overlay { position: fixed; inset: 0; background: #1A1A1A; z-index: 9990; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
     .google-listening { color: #9AA0A6; font-size: 38px; font-weight: 400; margin-bottom: 60px; letter-spacing: 0.5px; }
     .google-bars { display: flex; gap: 14px; align-items: center; justify-content: center; height: 80px; }
     .google-bar { width: 26px; height: 60px; border-radius: 20px; background: linear-gradient(180deg, #5B9DFF, #2F7BFF); animation: google-bar 1s ease-in-out infinite; }
@@ -98,8 +97,11 @@ st.markdown("""
     .google-bar:nth-child(3) { animation-delay: 0.3s; }
     .google-bar:nth-child(4) { animation-delay: 0.45s; }
     .google-sub { color: #8AB4F8; font-size: 14px; margin-top: 40px; background: #2A2E35; padding: 10px 18px; border-radius: 20px; }
-    .hidden-mic { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 140px; z-index: 9995; opacity: 0; }
+    .hidden-mic { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 140px; z-index: 9995; opacity: 0; pointer-events: auto; }
     .hidden-mic div[data-testid="stAudioInput"] { opacity: 0 !important; }
+    .jarvis-btn-wrap { position: fixed; bottom: 95px; right: 18px; z-index: 10000; }
+    .jarvis-btn-wrap div[data-testid="stButton"] > button { width: 88px !important; height: 88px !important; border-radius: 50% !important; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%) !important; font-size: 44px !important; border: 3px solid white !important; box-shadow: 0 0 30px rgba(255,75,75,0.8) !important; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite !important; }
+    .jarvis-btn-wrap div[data-testid="stButton"] > button p { font-size: 44px !important; line-height: 1 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -504,31 +506,10 @@ if prompt:
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
 
-# ==================== 🤖 JARVIS - CONTINUOUS CONVERSATION ====================
-# 1 choti circle = START, feri tei circle = END, bich ma kei thichnu pardaina
+# ==================== 🤖 JARVIS - CONTINUOUS + STOP PACHI ASK ME ====================
 if st.session_state.bot_enabled:
     bot = BOT_PERSONALITIES[st.session_state.bot_name]
-    st.markdown(f'<div class="jarvis-circle">{bot["avatar"]}</div>', unsafe_allow_html=True)
-    _c1, _c2 = st.columns([9, 1])
-    with _c2:
-        btn_text = "🛑" if st.session_state.siri_open else "🤖"
-        if st.button(btn_text, key="siri_circle_only", help="Start / End Conversation"):
-            if not st.session_state.siri_open:
-                st.session_state.siri_open = True
-                st.session_state.siri_turn = 0
-                st.session_state.siri_reply = bot['greeting']
-                st.session_state.siri_last = ""
-                if st.session_state.bot_talk:
-                    st.session_state.bot_audio = text_to_speech(bot['greeting'])
-            else:
-                st.session_state.siri_open = False
-                st.session_state.siri_reply = ""
-                st.session_state.siri_last = ""
-                st.session_state.siri_speaking = False
-            st.rerun()
-    if st.session_state.bot_audio:
-        play_hidden_audio(st.session_state.bot_audio)
-        st.session_state.bot_audio = None
+    # 1. Listening overlay
     if st.session_state.siri_open:
         status_text = "Speaking..." if st.session_state.siri_speaking else "Listening..."
         st.markdown(f"""<div class="google-overlay"><div class="google-listening">{status_text}</div><div class="google-bars"><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div></div><div class="google-sub">✓ Jarvis is listening - Tap circle to end</div></div>""", unsafe_allow_html=True)
@@ -569,5 +550,32 @@ if st.session_state.bot_enabled:
                     st.session_state.siri_speaking = False
                     st.session_state.siri_turn += 1
                     st.rerun()
+    # 2. ASLI CIRCLE BUTTON - overlay pachi, sadhai mathi
+    st.markdown('<div class="jarvis-btn-wrap">', unsafe_allow_html=True)
+    btn_text = "🛑" if st.session_state.siri_open else "🤖"
+    if st.button(btn_text, key="siri_circle_only", help="Start / End Conversation"):
+        if not st.session_state.siri_open:
+            # START
+            st.session_state.siri_open = True
+            st.session_state.siri_turn = 0
+            st.session_state.siri_reply = bot['greeting']
+            st.session_state.siri_last = ""
+            if st.session_state.bot_talk:
+                st.session_state.bot_audio = text_to_speech(bot['greeting'])
+        else:
+            # STOP - Ask me bhanera aaucha
+            st.session_state.siri_open = False
+            st.session_state.siri_reply = ""
+            st.session_state.siri_last = ""
+            st.session_state.siri_speaking = False
+            stop_msg = "Okay, Jarvis stopped! Aba type garera sodha — Ask me anything!"
+            st.session_state.messages.append({"role":"assistant","content":stop_msg})
+            if st.session_state.bot_talk:
+                st.session_state.bot_audio = text_to_speech("Okay, Jarvis stopped. Now you can type and ask me anything!")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    if st.session_state.bot_audio:
+        play_hidden_audio(st.session_state.bot_audio)
+        st.session_state.bot_audio = None
 
 st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

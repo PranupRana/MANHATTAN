@@ -84,15 +84,22 @@ st.markdown("""
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
     audio { display: none !important; }
-    /* ===== SIRI CIRCLE ONLY ===== */
+    /* ===== JARVIS - CIRCLE + GOOGLE LISTENING ===== */
     @keyframes floaty { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
     @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,75,75,0.6); } 70% { box-shadow: 0 0 0 16px rgba(255,75,75,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); } }
-    @keyframes siri-wave { 0%,100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.15); opacity: 1; } }
-    .siri-orb { width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%); display: flex; align-items: center; justify-content: center; font-size: 50px; border: 3px solid white; animation: siri-wave 1.2s ease-in-out infinite, pulse-ring 2s infinite; margin: 0 auto; box-shadow: 0 0 40px rgba(255,75,75,0.8); }
-    .siri-orb-idle { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #FF4B4B, #FF8A00); display: flex; align-items: center; justify-content: center; font-size: 36px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; }
-    .siri-box { background: #1E2130; padding: 22px; border-radius: 24px; border: 2px solid #FF4B4B; text-align: center; }
-    .siri-text { color: white !important; font-size: 15px !important; }
-    .siri-text b { color: white !important; }
+    @keyframes google-bar { 0%,100% { transform: scaleY(0.6); } 50% { transform: scaleY(1.4); } }
+    .jarvis-circle { width: 88px; height: 88px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%); display: flex; align-items: center; justify-content: center; font-size: 44px; border: 3px solid white; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite; box-shadow: 0 0 30px rgba(255,75,75,0.8); position: fixed; bottom: 95px; right: 18px; z-index: 9999; }
+    .google-overlay { position: fixed; inset: 0; background: #1A1A1A; z-index: 9990; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .google-listening { color: #9AA0A6; font-size: 38px; font-weight: 400; margin-bottom: 60px; letter-spacing: 0.5px; }
+    .google-bars { display: flex; gap: 14px; align-items: center; justify-content: center; height: 80px; }
+    .google-bar { width: 26px; height: 60px; border-radius: 20px; background: linear-gradient(180deg, #5B9DFF, #2F7BFF); animation: google-bar 1s ease-in-out infinite; }
+    .google-bar:nth-child(1) { animation-delay: 0s; }
+    .google-bar:nth-child(2) { animation-delay: 0.15s; }
+    .google-bar:nth-child(3) { animation-delay: 0.3s; }
+    .google-bar:nth-child(4) { animation-delay: 0.45s; }
+    .google-sub { color: #8AB4F8; font-size: 14px; margin-top: 40px; background: #2A2E35; padding: 10px 18px; border-radius: 20px; }
+    .hidden-mic { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 140px; z-index: 9995; opacity: 0; }
+    .hidden-mic div[data-testid="stAudioInput"] { opacity: 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -222,6 +229,8 @@ if "bot_talk" not in st.session_state: st.session_state.bot_talk = True
 if "siri_open" not in st.session_state: st.session_state.siri_open = False
 if "siri_last" not in st.session_state: st.session_state.siri_last = ""
 if "siri_reply" not in st.session_state: st.session_state.siri_reply = ""
+if "siri_turn" not in st.session_state: st.session_state.siri_turn = 0
+if "siri_speaking" not in st.session_state: st.session_state.siri_speaking = False
 
 if not st.session_state.logged_in:
     st.markdown('<div class="manhattan-logo-main" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
@@ -495,70 +504,70 @@ if prompt:
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
 
-# ==================== 🤖 SIRF CIRCLE MATRA - SIRI VOICE MODE ====================
+# ==================== 🤖 JARVIS - CONTINUOUS CONVERSATION ====================
+# 1 choti circle = START, feri tei circle = END, bich ma kei thichnu pardaina
 if st.session_state.bot_enabled:
     bot = BOT_PERSONALITIES[st.session_state.bot_name]
-    # Circle lai right side ma dhakelne - aru kei button chaina
+    st.markdown(f'<div class="jarvis-circle">{bot["avatar"]}</div>', unsafe_allow_html=True)
     _c1, _c2 = st.columns([9, 1])
     with _c2:
-        # Circle button - yei matra dekhincha
-        if st.button("🤖", key="siri_circle_only", help="Tap to talk to Mofisto"):
-            st.session_state.siri_open = not st.session_state.siri_open
-            if st.session_state.siri_open:
+        btn_text = "🛑" if st.session_state.siri_open else "🤖"
+        if st.button(btn_text, key="siri_circle_only", help="Start / End Conversation"):
+            if not st.session_state.siri_open:
+                st.session_state.siri_open = True
+                st.session_state.siri_turn = 0
                 st.session_state.siri_reply = bot['greeting']
+                st.session_state.siri_last = ""
                 if st.session_state.bot_talk:
                     st.session_state.bot_audio = text_to_speech(bot['greeting'])
+            else:
+                st.session_state.siri_open = False
+                st.session_state.siri_reply = ""
+                st.session_state.siri_last = ""
+                st.session_state.siri_speaking = False
             st.rerun()
-        if st.session_state.bot_audio:
-            play_hidden_audio(st.session_state.bot_audio)
-            st.session_state.bot_audio = None
-
-    # Circle thichyo bhane - SIRI jasto full voice conversation
+    if st.session_state.bot_audio:
+        play_hidden_audio(st.session_state.bot_audio)
+        st.session_state.bot_audio = None
     if st.session_state.siri_open:
-        st.markdown('<div class="siri-box">', unsafe_allow_html=True)
-        st.markdown('<div class="siri-orb">🤖</div>', unsafe_allow_html=True)
-        st.markdown('<p class="siri-text" style="text-align:center; margin-top:12px;"><b>Mofisto is listening...</b><br>Bolera sodha, ma bolera nai answer dinchu!</p>', unsafe_allow_html=True)
-        if st.session_state.siri_reply:
-            st.markdown(f'<p class="siri-text" style="background:white; color:#111 !important; padding:12px; border-radius:16px; text-align:left;">🤖 <b style="color:#111 !important;">Mofisto:</b> <span style="color:#111 !important;">{st.session_state.siri_reply}</span></p>', unsafe_allow_html=True)
-        if st.session_state.siri_last:
-            st.markdown(f'<p class="siri-text">🧑 <b>You said:</b> {st.session_state.siri_last}</p>', unsafe_allow_html=True)
-        # Voice input - yaha bolne
-        siri_audio = st.audio_input("🎙️ Tap and speak...", key="siri_voice_input")
+        status_text = "Speaking..." if st.session_state.siri_speaking else "Listening..."
+        st.markdown(f"""<div class="google-overlay"><div class="google-listening">{status_text}</div><div class="google-bars"><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div></div><div class="google-sub">✓ Jarvis is listening - Tap circle to end</div></div>""", unsafe_allow_html=True)
+        mic_key = f"siri_voice_{st.session_state.siri_turn}"
+        st.markdown('<div class="hidden-mic">', unsafe_allow_html=True)
+        siri_audio = st.audio_input(" ", key=mic_key, label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
         if siri_audio is not None:
             siri_bytes = siri_audio.read()
-            # Euta audio lai 2 choti process nagarne
-            if siri_bytes and st.session_state.get("siri_processed") != len(siri_bytes):
-                st.session_state.siri_processed = len(siri_bytes)
-                with st.spinner("Suniraheko chu..."):
-                    user_text, err = speech_to_text(siri_bytes)
-                    if user_text:
-                        st.session_state.siri_last = user_text
-                        # Siri conversation - LLM sanga kura garne
-                        if not api_key:
-                            st.session_state.siri_reply = "Please add API key in Secrets."
-                        else:
-                            try:
-                                siri_llm = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=0.7)
-                                siri_msgs = [SystemMessage(content="You are Mofisto, a friendly male voice assistant. Answer in short, natural spoken English, max 2-3 sentences, like Siri. No markdown, no symbols. Speak like a real friend."), HumanMessage(content=user_text)]
-                                siri_res = siri_llm.invoke(siri_msgs)
-                                siri_answer = str(siri_res.content)
-                                st.session_state.siri_reply = siri_answer
-                                # Chat ma pani save garne
-                                st.session_state.messages.append({"role":"user","content":user_text})
-                                st.session_state.messages.append({"role":"assistant","content":siri_answer})
-                                # Male kara voice ma bolne
-                                if st.session_state.bot_talk:
-                                    st.session_state.bot_audio = text_to_speech(siri_answer)
-                                    play_hidden_audio(st.session_state.bot_audio)
-                                    st.session_state.bot_audio = None
-                            except Exception as e:
-                                st.session_state.siri_reply = "Sorry, I could not connect. Try again."
-                        st.rerun()
+            if siri_bytes:
+                user_text, err = speech_to_text(siri_bytes)
+                if user_text:
+                    st.session_state.siri_last = user_text
+                    st.session_state.siri_speaking = True
+                    if not api_key:
+                        siri_answer = "Please add API key in Secrets."
                     else:
-                        st.session_state.siri_reply = "I could not hear you, please speak again."
-                        st.rerun()
-        # Circle feri thichyo bhane banda garne - yei euta matra close option, circle bata nai
-        st.markdown('<p class="siri-text" style="font-size:12px; opacity:0.7;">Circle feri thichyo bhane Siri mode banda huncha.</p>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+                        try:
+                            siri_llm = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=0.7)
+                            history = st.session_state.messages[-6:]
+                            siri_msgs = [SystemMessage(content="You are Jarvis, a friendly male voice assistant. Talk like a real human, short, natural spoken English, max 2-3 sentences, like Google Assistant. Remember what user said before. No markdown, no symbols.")]
+                            for m in history:
+                                if m.get("type") in ["image","video"]: continue
+                                if m["role"]=="user": siri_msgs.append(HumanMessage(content=m["content"]))
+                                elif m["role"]=="assistant": siri_msgs.append(AIMessage(content=m["content"]))
+                            siri_msgs.append(HumanMessage(content=user_text))
+                            siri_res = siri_llm.invoke(siri_msgs)
+                            siri_answer = str(siri_res.content)
+                        except:
+                            siri_answer = "Sorry, I could not connect. Try again."
+                    st.session_state.siri_reply = siri_answer
+                    st.session_state.messages.append({"role":"user","content":user_text})
+                    st.session_state.messages.append({"role":"assistant","content":siri_answer})
+                    if st.session_state.bot_talk:
+                        st.session_state.bot_audio = text_to_speech(siri_answer)
+                        play_hidden_audio(st.session_state.bot_audio)
+                        st.session_state.bot_audio = None
+                    st.session_state.siri_speaking = False
+                    st.session_state.siri_turn += 1
+                    st.rerun()
 
 st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)

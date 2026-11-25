@@ -4,11 +4,11 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 import datetime, urllib.parse, random, hashlib, sqlite3, json, io, re, base64
 import numpy as np
 import asyncio
+import streamlit.components.v1 as components
 try:
     import edge_tts
     HAS_EDGE = True
 except: HAS_EDGE = False
-
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
@@ -84,7 +84,6 @@ st.markdown("""
     div[data-testid="stFileUploader"] section { background-color: #1E2130 !important; }
     div[data-testid="stAudioInput"] p { color: #FFFFFF !important; }
     audio { display: none !important; }
-    /* ===== JARVIS - ASLI BUTTON NAI CIRCLE, FIXED ===== */
     @keyframes floaty { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
     @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,75,75,0.6); } 70% { box-shadow: 0 0 0 16px rgba(255,75,75,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); } }
     @keyframes google-bar { 0%,100% { transform: scaleY(0.6); } 50% { transform: scaleY(1.4); } }
@@ -96,9 +95,7 @@ st.markdown("""
     .google-bar:nth-child(2) { animation-delay: 0.15s; }
     .google-bar:nth-child(3) { animation-delay: 0.3s; }
     .google-bar:nth-child(4) { animation-delay: 0.45s; }
-    .google-sub { color: #8AB4F8; font-size: 14px; margin-top: 40px; background: #2A2E35; padding: 10px 18px; border-radius: 20px; }
-    .hidden-mic { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 140px; z-index: 9995; opacity: 0; pointer-events: auto; }
-    .hidden-mic div[data-testid="stAudioInput"] { opacity: 0 !important; }
+    .google-sub { color: #8AB4F8; font-size: 14px; margin-top: 40px; background: #2A2E35; padding: 10px 18px; border-radius: 20px; text-align:center; line-height:1.6; }
     .jarvis-btn-wrap { position: fixed; bottom: 95px; right: 18px; z-index: 10000; }
     .jarvis-btn-wrap div[data-testid="stButton"] > button { width: 88px !important; height: 88px !important; border-radius: 50% !important; background: radial-gradient(circle at 30% 30%, #FF8A00, #FF4B4B 55%, #7B2FFF 100%) !important; font-size: 44px !important; border: 3px solid white !important; box-shadow: 0 0 30px rgba(255,75,75,0.8) !important; animation: floaty 2.5s ease-in-out infinite, pulse-ring 2s infinite !important; }
     .jarvis-btn-wrap div[data-testid="stButton"] > button p { font-size: 44px !important; line-height: 1 !important; }
@@ -108,30 +105,11 @@ st.markdown("""
 api_key = st.secrets.get("OPENROUTER_API_KEY", "")
 
 BOT_PERSONALITIES = {
-    "😊 Helper Mofisto": {
-        "avatar": "🤖",
-        "greeting": "Hey! I am Mofisto! What do you need? Want a photo, a video, or help with homework? Just ask me!",
-        "help": "Got it! I am Mofisto, I will help you! Change the Mode from the sidebar. For photos, choose Image. For videos, choose Video. Or just speak using the mic!",
-        "tips": ["Go to Image Mode to make a photo", "Go to Video Mode to make a video", "Upload a PDF and I will answer from it", "Tap the mic to speak to me"],
-        "encourage": "You are doing great! Anything else? I am Mofisto, I am right here! 🔥"
-    },
-    "😂 Funny Mofisto": {
-        "avatar": "😹",
-        "greeting": "Yo yo! I am Mofisto! Are you bored? I am here! Want a joke or a photo? Tell me!",
-        "help": "Haha, don't stress! I am Mofisto! Too lazy to type? Just speak, I will listen!",
-        "tips": ["Ask me to tell you a joke if you are bored", "Type A boy in Himalayas to make a photo", "Type Running in rain to make a video"],
-        "encourage": "Haha, you are already a pro! What next? 😂"
-    },
-    "🔥 Motivator Mofisto": {
-        "avatar": "🦸",
-        "greeting": "Let's go! I am your motivator Mofisto! Want to do something big today? Let's start!",
-        "help": "Don't give up! Let's do it step by step. Tell me what you want - Chat, Image, or Video? I will guide you!",
-        "tips": ["Learn one new thing today", "You can do it, just try!", "Upload a PDF and study with me"],
-        "encourage": "That is the spirit! You can do it! Keep going! 🔥"
-    },
+    "😊 Helper Mofisto": {"avatar": "🤖","greeting": "Hey! I am Mofisto! What do you need? Want a photo, a video, or help with homework? Just ask me!","help": "Got it! I am Mofisto, I will help you! Change the Mode from the sidebar. For photos, choose Image. For videos, choose Video. Or just speak using the mic!","tips": ["Go to Image Mode to make a photo", "Go to Video Mode to make a video", "Upload a PDF and I will answer from it", "Tap the mic to speak to me"],"encourage": "You are doing great! Anything else? I am Mofisto, I am right here! 🔥"},
+    "😂 Funny Mofisto": {"avatar": "😹","greeting": "Yo yo! I am Mofisto! Are you bored? I am here! Want a joke or a photo? Tell me!","help": "Haha, don't stress! I am Mofisto! Too lazy to type? Just speak, I will listen!","tips": ["Ask me to tell you a joke if you are bored", "Type A boy in Himalayas to make a photo", "Type Running in rain to make a video"],"encourage": "Haha, you are already a pro! What next? 😂"},
+    "🔥 Motivator Mofisto": {"avatar": "🦸","greeting": "Let's go! I am your motivator Mofisto! Want to do something big today? Let's start!","help": "Don't give up! Let's do it step by step. Tell me what you want - Chat, Image, or Video? I will guide you!","tips": ["Learn one new thing today", "You can do it, just try!", "Upload a PDF and study with me"],"encourage": "That is the spirit! You can do it! Keep going! 🔥"},
 }
 
-# ===== MALE, ALIK KARA VOICE =====
 def text_to_speech(text, lang="en"):
     clean = re.sub(r'[#*`_~>\[\]()|]', '', text)
     clean = re.sub(r'[^\w\s.,!?\'-]', ' ', clean)
@@ -144,24 +122,15 @@ def text_to_speech(text, lang="en"):
                 communicate = edge_tts.Communicate(clean, VOICE, rate="-5%", pitch="-5Hz")
                 buf = io.BytesIO()
                 async for chunk in communicate.stream():
-                    if chunk["type"] == "audio":
-                        buf.write(chunk["data"])
-                buf.seek(0)
-                return buf.read()
+                    if chunk["type"] == "audio": buf.write(chunk["data"])
+                buf.seek(0); return buf.read()
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                audio = loop.run_until_complete(_make())
-                loop.close()
-                return audio
-            except:
-                return asyncio.run(_make())
+                loop = asyncio.new_event_loop(); asyncio.set_event_loop(loop); audio = loop.run_until_complete(_make()); loop.close(); return audio
+            except: return asyncio.run(_make())
         except: pass
     if HAS_TTS:
         try:
-            tts = gTTS(text=clean, lang="en", tld="com", slow=False)
-            buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
-            return buf.read()
+            tts = gTTS(text=clean, lang="en", tld="com", slow=False); buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0); return buf.read()
         except: return None
     return None
 
@@ -233,6 +202,8 @@ if "siri_last" not in st.session_state: st.session_state.siri_last = ""
 if "siri_reply" not in st.session_state: st.session_state.siri_reply = ""
 if "siri_turn" not in st.session_state: st.session_state.siri_turn = 0
 if "siri_speaking" not in st.session_state: st.session_state.siri_speaking = False
+if "last_voice_turn" not in st.session_state: st.session_state.last_voice_turn = ""
+if "pending_speak" not in st.session_state: st.session_state.pending_speak = ""
 
 if not st.session_state.logged_in:
     st.markdown('<div class="manhattan-logo-main" style="text-align:center;">MANHATTAN 🔥</div>', unsafe_allow_html=True)
@@ -249,19 +220,12 @@ if not st.session_state.logged_in:
             lp = st.text_input("🔒 Password", placeholder="Timro password lekha...", type="password", key="login_p")
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🔐 Login Garne", use_container_width=True, type="primary"):
-                if not lu or not lp:
-                    st.error("Username + Password duitai halna!")
+                if not lu or not lp: st.error("Username + Password duitai halna!")
                 elif login_user(lu.strip(), lp):
-                    st.session_state.logged_in = True
-                    st.session_state.username = lu.strip()
-                    st.session_state.messages = []
-                    st.session_state.current_chat_id = None
-                    bot = BOT_PERSONALITIES[st.session_state.bot_name]
-                    st.session_state.bot_message = f"Welcome back {lu}! {bot['greeting']}"
-                    st.success(f"Welcome back, {lu}! 🔥")
-                    st.rerun()
-                else:
-                    st.error("Username / Password galat cha!")
+                    st.session_state.logged_in = True; st.session_state.username = lu.strip(); st.session_state.messages = []; st.session_state.current_chat_id = None
+                    bot = BOT_PERSONALITIES[st.session_state.bot_name]; st.session_state.bot_message = f"Welcome back {lu}! {bot['greeting']}"
+                    st.success(f"Welcome back, {lu}! 🔥"); st.rerun()
+                else: st.error("Username / Password galat cha!")
             st.markdown("<p style='color:#AAAAAA; font-size:13px; text-align:center; margin-top:10px;'>Account chaina? Signup tab ma jau 👆</p>", unsafe_allow_html=True)
         with tab_signup:
             st.markdown("<h3 style='color:white;'>Naya Account Banau ✨</h3>", unsafe_allow_html=True)
@@ -271,12 +235,9 @@ if not st.session_state.logged_in:
             sp2 = st.text_input("🔒 Password Confirm", placeholder="Password feri lekha", type="password", key="signup_p2")
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("✨ Signup Garne", use_container_width=True, type="primary"):
-                if not su or not sp:
-                    st.error("Username + Password chahincha!")
-                elif sp != sp2:
-                    st.error("Password milena!")
-                elif len(sp) < 4:
-                    st.error("Password kamti ma 4 character hunu parcha!")
+                if not su or not sp: st.error("Username + Password chahincha!")
+                elif sp != sp2: st.error("Password milena!")
+                elif len(sp) < 4: st.error("Password kamti ma 4 character hunu parcha!")
                 else:
                     ok, msg = signup_user(su.strip(), sp)
                     if ok: st.success(msg)
@@ -402,6 +363,38 @@ PERSONALITY_PROMPTS = {
 }
 BASE_PROMPT = PERSONALITY_PROMPTS[personality]
 
+# ===== VOICE LOOP: JS bata aako voice handle garne - siri_open cha bhane matra =====
+if st.session_state.get("siri_open"):
+    q = st.query_params
+    vt = q.get("voice", "")
+    vturn = q.get("turn", "")
+    if vt and vturn and vturn != st.session_state.last_voice_turn:
+        st.session_state.last_voice_turn = vturn
+        st.session_state.siri_last = vt
+        st.query_params.clear()
+        # LLM answer nikalne
+        if not api_key:
+            ans = "Please add API key in Secrets."
+        else:
+            try:
+                llm2 = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=0.7)
+                h = st.session_state.messages[-6:]
+                mm = [SystemMessage(content="You are Jarvis, friendly male voice assistant. Short, natural spoken English, max 2-3 sentences. Remember before. No markdown, no symbols.")]
+                for m in h:
+                    if m.get("type") in ["image","video"]: continue
+                    if m["role"]=="user": mm.append(HumanMessage(content=m["content"]))
+                    elif m["role"]=="assistant": mm.append(AIMessage(content=m["content"]))
+                mm.append(HumanMessage(content=vt))
+                r = llm2.invoke(mm); ans = str(r.content)
+            except:
+                ans = "Sorry, I could not connect. Try again."
+        st.session_state.siri_reply = ans
+        st.session_state.messages.append({"role":"user","content":vt})
+        st.session_state.messages.append({"role":"assistant","content":ans})
+        st.session_state.pending_speak = ans
+        st.session_state.siri_turn += 1
+        st.rerun()
+
 st.markdown('<div class="manhattan-logo-main">MANHATTAN 🔥</div>', unsafe_allow_html=True)
 st.caption(f"Namaste, **{st.session_state.username}** 👋 • Tap the circle on the right to talk to Mofisto!")
 if st.session_state.rag_chunks:
@@ -506,68 +499,25 @@ if prompt:
                     except Exception as e:
                         st.error("Couldn't connect to OpenRouter."); st.caption(f"Details: {e}")
 
-# ==================== 🤖 JARVIS - CONTINUOUS + STOP PACHI ASK ME ====================
+# ==================== 🤖 JARVIS - TRUE LOOP - NO MIC TAP ====================
 if st.session_state.bot_enabled:
     bot = BOT_PERSONALITIES[st.session_state.bot_name]
-    # 1. Listening overlay
-    if st.session_state.siri_open:
-        status_text = "Speaking..." if st.session_state.siri_speaking else "Listening..."
-        st.markdown(f"""<div class="google-overlay"><div class="google-listening">{status_text}</div><div class="google-bars"><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div></div><div class="google-sub">✓ Jarvis is listening - Tap circle to end</div></div>""", unsafe_allow_html=True)
-        mic_key = f"siri_voice_{st.session_state.siri_turn}"
-        st.markdown('<div class="hidden-mic">', unsafe_allow_html=True)
-        siri_audio = st.audio_input(" ", key=mic_key, label_visibility="collapsed")
-        st.markdown('</div>', unsafe_allow_html=True)
-        if siri_audio is not None:
-            siri_bytes = siri_audio.read()
-            if siri_bytes:
-                user_text, err = speech_to_text(siri_bytes)
-                if user_text:
-                    st.session_state.siri_last = user_text
-                    st.session_state.siri_speaking = True
-                    if not api_key:
-                        siri_answer = "Please add API key in Secrets."
-                    else:
-                        try:
-                            siri_llm = ChatOpenAI(model=model_choice.strip(), openai_api_key=api_key, openai_api_base="https://openrouter.ai/api/v1", temperature=0.7)
-                            history = st.session_state.messages[-6:]
-                            siri_msgs = [SystemMessage(content="You are Jarvis, a friendly male voice assistant. Talk like a real human, short, natural spoken English, max 2-3 sentences, like Google Assistant. Remember what user said before. No markdown, no symbols.")]
-                            for m in history:
-                                if m.get("type") in ["image","video"]: continue
-                                if m["role"]=="user": siri_msgs.append(HumanMessage(content=m["content"]))
-                                elif m["role"]=="assistant": siri_msgs.append(AIMessage(content=m["content"]))
-                            siri_msgs.append(HumanMessage(content=user_text))
-                            siri_res = siri_llm.invoke(siri_msgs)
-                            siri_answer = str(siri_res.content)
-                        except:
-                            siri_answer = "Sorry, I could not connect. Try again."
-                    st.session_state.siri_reply = siri_answer
-                    st.session_state.messages.append({"role":"user","content":user_text})
-                    st.session_state.messages.append({"role":"assistant","content":siri_answer})
-                    if st.session_state.bot_talk:
-                        st.session_state.bot_audio = text_to_speech(siri_answer)
-                        play_hidden_audio(st.session_state.bot_audio)
-                        st.session_state.bot_audio = None
-                    st.session_state.siri_speaking = False
-                    st.session_state.siri_turn += 1
-                    st.rerun()
-    # 2. ASLI CIRCLE BUTTON - overlay pachi, sadhai mathi
+    # Circle button - Start / End
     st.markdown('<div class="jarvis-btn-wrap">', unsafe_allow_html=True)
     btn_text = "🛑" if st.session_state.siri_open else "🤖"
     if st.button(btn_text, key="siri_circle_only", help="Start / End Conversation"):
         if not st.session_state.siri_open:
-            # START
             st.session_state.siri_open = True
             st.session_state.siri_turn = 0
             st.session_state.siri_reply = bot['greeting']
             st.session_state.siri_last = ""
-            if st.session_state.bot_talk:
-                st.session_state.bot_audio = text_to_speech(bot['greeting'])
+            st.session_state.pending_speak = bot['greeting']
         else:
-            # STOP - Ask me bhanera aaucha
             st.session_state.siri_open = False
             st.session_state.siri_reply = ""
             st.session_state.siri_last = ""
             st.session_state.siri_speaking = False
+            st.session_state.pending_speak = ""
             stop_msg = "Okay, Jarvis stopped! Aba type garera sodha — Ask me anything!"
             st.session_state.messages.append({"role":"assistant","content":stop_msg})
             if st.session_state.bot_talk:
@@ -577,5 +527,50 @@ if st.session_state.bot_enabled:
     if st.session_state.bot_audio:
         play_hidden_audio(st.session_state.bot_audio)
         st.session_state.bot_audio = None
+
+    if st.session_state.siri_open:
+        st.markdown(f"""<div class="google-overlay"><div class="google-listening">Listening... - Loop ON 🔁</div><div class="google-bars"><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div><div class="google-bar"></div></div><div class="google-sub">🎤 Mic thichnu pardaina - Bolna matra, afai suncha<br>🧑 You: {st.session_state.siri_last}<br>🤖 Jarvis: {st.session_state.siri_reply}</div></div>""", unsafe_allow_html=True)
+        # JS LOOP: 1. pending_speak cha bhane bolcha, 2. bole pachi suncha, 3. sunyo bhane URL ma voice pathaucha, 4. Python le answer nikalcha, 5. feri bolcha, 6. feri suncha
+        speak_text = st.session_state.pending_speak
+        st.session_state.pending_speak = ""
+        # pending_speak clear bhayo bhane pani JS le sunirahancha - speak_text khali bhaye sunna matra
+        components.html(f"""
+        <div id="jarvis-box" style="color:white;font-family:sans-serif;">🎤 Jarvis Loop ON - Bolna matra</div>
+        <script>
+        const speakText = {json.dumps(speak_text)};
+        let recog = null;
+        function startListen() {{
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {{ document.getElementById('jarvis-box').innerText = 'Chrome use gara - voice support chaina'; return; }}
+            recog = new SR();
+            recog.continuous = false; recog.interimResults = false; recog.lang = 'en-IN';
+            recog.onresult = (e) => {{
+                const txt = e.results[0][0].transcript;
+                const url = new URL(window.parent.location.href);
+                url.searchParams.set('voice', txt);
+                url.searchParams.set('turn', Date.now().toString());
+                window.parent.location.href = url.toString();
+            }};
+            recog.onerror = () => {{ setTimeout(startListen, 800); }};
+            recog.onend = () => {{ }};
+            try {{ recog.start(); }} catch(err) {{ setTimeout(startListen, 800); }}
+        }}
+        function doSpeak(text, cb) {{
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US'; u.rate = 1.0; u.pitch = 0.8;
+            const voices = window.speechSynthesis.getVoices();
+            const male = voices.find(v => /David|Mark|Guy|Christopher|Daniel/i.test(v.name));
+            if (male) u.voice = male;
+            u.onend = cb; u.onerror = cb;
+            window.speechSynthesis.speak(u);
+        }}
+        if (speakText && speakText.length > 0) {{
+            doSpeak(speakText, () => setTimeout(startListen, 400));
+        }} else {{
+            setTimeout(startListen, 400);
+        }}
+        </script>
+        """, height=70)
 
 st.markdown('<div class="footer">MANHATTAN AI · RAG + Chat + Image + Video + Login + Voice + Mofisto · Made in Nepal 🇳🇵</div>', unsafe_allow_html=True)
